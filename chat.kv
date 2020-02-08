@@ -1,0 +1,112 @@
+#:import C kivy.utils.get_color_from_hex
+#:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
+<BoxLayout>:
+    padding: 10
+    spacing: 10
+
+<GridLayout>:
+    rows: 2
+    cols: 2
+    spacing: 10
+    row_default_height: 90
+    row_force_default: True
+<Label>:
+    font_size: 25
+
+<PurpleButton@Button>:
+    font_size: 30
+    height: 90
+    size_hint: (1, None)
+    background_normal: 'assets/button_normal.png'
+    background_down: 'assets/button_down.png'
+    border: (2, 2, 2, 2)
+
+<TextInput>:
+    font_size: 30
+    multiline: False
+    padding: [10, 0.5 * (self.height - self.line_height)]
+
+<ScrollView>:
+    canvas.before:
+        Color:
+            rgb: 1, 1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<ChatLabel@Label>:
+    color: C('#101010')
+    text_size: (self.width, None)
+    halign: 'left'
+    valign: 'top'
+    padding: (-10, 0)  # fixed in Kivy 1.8.1
+    size_hint: (1, None)
+    height: self.texture_size[1]
+    markup: True
+
+<LoginLabel@Label>:
+    font_size: 20
+    text_size: self.size
+    halign: 'left'
+    valign: 'middle'
+    size_hint: (0.4, 1)
+
+<CircularButton@Button>:
+	canvas:
+		Ellipse:
+			pos: self.pos
+			size: self.size
+
+ScreenManager:
+    transition: RiseInTransition()
+    Screen:
+        name: 'login'
+        BoxLayout:
+            orientation: 'vertical'
+            GridLayout:
+                LoginLabel:
+                    text: 'Username:'
+
+                TextInput:
+                    id: username
+                    text: ''
+                    write_tab: False
+                    multiline: False
+
+                LoginLabel:
+                    text: 'Password'
+
+                TextInput:
+                    id: passwd
+                    password: True
+                    write_tab: False
+                    multiline: False
+                    on_text_validate: app.authenticate()
+
+            PurpleButton:
+                text: 'Connect'
+                on_press: app.authenticate()
+            PurpleButton:
+                text: 'Sign up'
+                on_press: app.sign_up()
+	Screen:
+		name: 'signup'
+		CircularButton:
+			size: dp(150), dp(150)
+			background_color: 0, 0, 0, 0
+			size_hint: None, None
+			pos_hint: {'center_x': .5, 'center_y': .8}
+
+			on_press: app.upload_image()
+			Image:
+				allow_stretch: True
+				source: 'assets/placeholder.png'
+				height: self.parent.height
+				width: self.parent.width
+				x :self.parent.x
+				y: self.parent.y
+
+
+		BoxLayout:
+			orientation: 'vertical'
+
