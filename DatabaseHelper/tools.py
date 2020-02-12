@@ -2,7 +2,7 @@ from peewee import *
 import bcrypt
 from datetime import datetime
 
-db = SqliteDatabase('C:/Users/aanas/Desktop/pc.db')
+db = SqliteDatabase('D:/pc.db')
 
 
 class User(Model):
@@ -16,14 +16,25 @@ class User(Model):
         database = db
 
 
-def add_user(username, password, pfp_source):
-    salt = bcrypt.gensalt()
-    pwd = bcrypt.hashpw(password.encode(), salt)
-    with open(pfp_source, 'rb') as file:
-        image_bin = file.read()
-    new_user = User(username=username, password_hash=pwd, password_salt=salt, last_login=datetime.now(),
-                    profile_picture=image_bin)
-    new_user.save()
+class Messages(Model):
+    sender = CharField(100)
+    destination = CharField(100)
+    message_text = TextField(100)
+    attachments = BlobField(null=True)
+    timestamp = DateTimeField()
+
+
+def add_user(username, password, pfp_byte_arr):
+    try:
+        query = User.get(User.username == username)
+    except User.DoesNotExist:
+        salt = bcrypt.gensalt()
+        pwd = bcrypt.hashpw(password.encode(), salt)
+        new_user = User(username=username, password_hash=pwd, password_salt=salt, last_login=datetime.now(),
+                        profile_picture=pfp_byte_arr)
+        new_user.save()
+    else:
+        return False
 
 
 def login(username, password):

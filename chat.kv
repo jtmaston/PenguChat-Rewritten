@@ -5,7 +5,7 @@
     spacing: 10
 
 <GridLayout>:
-    rows: 2
+    rows: 3
     cols: 2
     spacing: 10
     row_default_height: 90
@@ -35,7 +35,6 @@
             size: self.size
 
 <ChatLabel@Label>:
-    color: C('#101010')
     text_size: (self.width, None)
     halign: 'left'
     valign: 'top'
@@ -45,7 +44,8 @@
     markup: True
 
 <LoginLabel@Label>:
-    font_size: 20
+    color: 0, 0, 0, 1
+    font_size: 25
     text_size: self.size
     halign: 'left'
     valign: 'middle'
@@ -57,9 +57,16 @@
 			pos: self.pos
 			size: self.size
 
+<LoginScreen@Screen>:
+    canvas:
+        Rectangle:
+            source:"assets/wallpaper.jpg"
+            pos: self.pos
+            size: self.size
+
 ScreenManager:
     transition: RiseInTransition()
-    Screen:
+    LoginScreen:
         name: 'login'
         BoxLayout:
             orientation: 'vertical'
@@ -84,28 +91,65 @@ ScreenManager:
                     on_text_validate: app.authenticate()
 
             PurpleButton:
+                color: 0, 0, 0, 1
                 text: 'Connect'
                 on_press: app.authenticate()
             PurpleButton:
                 text: 'Sign up'
-                on_press: app.sign_up()
-	Screen:
+                color: 0, 0, 0, 1
+                on_press: app.sign_up_redirect()
+	LoginScreen:
 		name: 'signup'
-		CircularButton:
-			size: dp(150), dp(150)
-			background_color: 0, 0, 0, 0
-			size_hint: None, None
-			pos_hint: {'center_x': .5, 'center_y': .8}
+		BoxLayout:
+		    orientation: 'vertical'
 
-			on_press: app.upload_image()
-			Image:
-				texture: app.placeholder.texture
-				allow_stretch: True
-				height: self.parent.height
-				width: self.parent.width
-				x :self.parent.x
-				y: self.parent.y
+            CircularButton:
+                size: dp(150), dp(150)
+                background_color: 0, 0, 0, 0
+                size_hint: None, None
+                pos_hint: {'center_x': .5, 'center_y': .8}
 
+                on_press: app.upload_image()
+                Image:
+                    texture: app.placeholder.texture
+                    allow_stretch: True
+                    height: self.parent.height
+                    width: self.parent.width
+                    x :self.parent.x
+                    y: self.parent.y
+            GridLayout:
+                LoginLabel:
+                    text: 'Username:'
+
+                TextInput:
+                    id: username
+                    text: ''
+                    write_tab: False
+                    multiline: False
+
+                LoginLabel:
+                    text: 'Password'
+
+                TextInput:
+                    id: passwd
+                    password: True
+                    write_tab: False
+                    multiline: False
+
+                LoginLabel:
+                    text: 'Password (again)'
+
+                TextInput:
+                    id: passwd_r
+                    password: True
+                    write_tab: False
+                    multiline: False
+                    on_text_validate: app.sign_up()
+
+            PurpleButton:
+                text: 'Sign up'
+                color: 0,0,0,1
+                on_press: app.sign_up()
 
 		BoxLayout:
 			orientation: 'vertical'

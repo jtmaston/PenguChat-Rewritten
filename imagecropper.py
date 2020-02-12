@@ -32,7 +32,7 @@ def create_thumbnail(path):
     else:
         img = crop_vertically(height - size_min, img)
     width, height = img.size
-    npImage = np.array(img)
+    np_image = np.array(img)
     # Create same size alpha layer with circle
     alpha = Image.new('L', img.size, 0)
     draw = ImageDraw.Draw(alpha)
@@ -42,18 +42,18 @@ def create_thumbnail(path):
     npAlpha = np.array(alpha)
 
     # Add alpha layer to RGB
-    npImage = np.dstack((npImage, npAlpha))
+    np_image = np.dstack((np_image, npAlpha))
 
     # Save with alpha
     size = 180, 180
-    img = Image.fromarray(npImage)
+    img = Image.fromarray(np_image)
     img.thumbnail(size, Image.ANTIALIAS)
 
     img.save('.temp/temp.png', format='png')
-    byteArr = io.BytesIO(open(".temp/temp.png", 'rb').read())
+    byte_arr = io.BytesIO(open(".temp/temp.png", 'rb').read())
     os.remove('.temp/temp.png')
-    return byteArr
+    return byte_arr
 
 
 if __name__ == '__main__':
-    create_thumbnail()
+    pass
