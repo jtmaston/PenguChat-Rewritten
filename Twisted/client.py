@@ -1,19 +1,29 @@
-from twisted.internet.endpoints import TCP4ClientEndpoint
-from twisted.internet.protocol import *
-from twisted.internet import reactor
+from twisted.internet.protocol import Factory, ClientFactory
+from twisted.protocols.basic import LineReceiver
+from twisted.internet import reactor, task
+import threading
+from multiprocessing.queues import Queue
+
+commands = Queue()
 
 
-class Talker(Protocol):
-    def connectionMade(self):
+class KbThread(threading.Thread):
+    def run(self) -> None:
         while True:
             data = input(">")
-            if data == '/stop':
-                self.transport.loseConnection()
-            else:
-                self.transport.write(data)
-
-    def dataReceived(self, data):
-        print("Got data from server:", data)
+            commands.put(data)
 
 
-endpoint = TCP4ClientEndpoint(reactor, "localhost", 8080)
+class Sender(LineReceiver):
+    def connectionMade(self):
+        task.LoopingCall(self.checkQueue()).start(0.5)
+
+    def checkQueue(self):
+        print("checking...")
+        while not commands.empty():
+            self.transport.write(commands.get_nowait())
+
+
+class SenderFactory(ClientFactory):
+    def startedConnecting(self, connector):
+        print("")

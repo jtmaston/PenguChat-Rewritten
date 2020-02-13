@@ -1,19 +1,18 @@
-from twisted.internet.protocol import *
-from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.internet.protocol import Factory
+from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
 
 
-class Echo(Protocol):
-    def dataReceived(self, data):
-        self.transport.write(data)
+class Chat(LineReceiver):
+    def lineReceived(self, line):
+        print(line)
 
 
-class EchoFactory(Factory):
+class ChatFactory(Factory):
     def buildProtocol(self, addr):
-        return Echo()
+        print(f"Connected to {addr}")
+        return Chat()
 
 
-endpoint = TCP4ServerEndpoint(reactor, 8080)
-endpoint.listen(EchoFactory())
-print("Server starting...")
+reactor.listenTCP(8123, ChatFactory())
 reactor.run()
