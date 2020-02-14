@@ -1,19 +1,20 @@
 from kivy.config import Config
 from kivy.app import App
-from kivy.support import install_twisted_reactor
 from kivy.uix.image import Image
 from kivy.core.image import Image as CoreImage
 from easygui import fileopenbox
 import bcrypt
 from imagecropper import create_thumbnail
 from Comms.client import kbQueue
-from twisted.internet import reactor
 from Comms.client import ClientFactory
-
-install_twisted_reactor()
+from twisted.internet import reactor
 
 
 class ChatApp(App):
+    def build(self):
+        super(ChatApp, self).build()
+        reactor.connectTCP("localhost", 8123, ClientFactory())
+
     def __init__(self):
         """Set login page size and screen"""
         super(ChatApp, self).__init__()
@@ -21,7 +22,6 @@ class ChatApp(App):
         Config.set('graphics', 'height', '700')
         self.placeholder = Image(source="Assets/placehold.png")
         self.pfp_byte_arr = None
-        reactor.connectTCP("localhost", 8123, ClientFactory())
 
     def on_request_close(self, timestamp):
         self.stop()
@@ -36,12 +36,16 @@ class ChatApp(App):
         if pwd == pwd_r and self.pfp_byte_arr.getvalue() is not None:
             salt = bcrypt.gensalt()
             pwd = bcrypt.hashpw(pwd.encode(), salt)
-            command = {'command': 'register', 'args': (username, pwd, salt)}
+            command = {'command': 'register', 'args': (username, pwd, salt, self.pfp_byte_arr.getvalue())}
             kbQueue.put(command)
 
+    def login(self):
+        pwd = self.root.ids.passwd.text
+        username = self.root.ids.username.text
+        
+
     def upload_image(self):
-        path = fileopenbox(msg='Choose an image', filetypes=[['*.jpg', '*.jpeg', '*.bmp', '*.png', 'Image files']],
-                           multiple=False)
+        path = fileopenbox(msg='Choose an image', multiple=False)
         if path is not None:
             self.pfp_byte_arr = create_thumbnail(path)
             self.placeholder.texture = CoreImage(self.pfp_byte_arr, ext='png').texture

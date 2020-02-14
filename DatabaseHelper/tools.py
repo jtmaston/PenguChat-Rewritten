@@ -24,12 +24,10 @@ class Messages(Model):
     timestamp = DateTimeField()
 
 
-def add_user(username, password, pfp_byte_arr):
+def add_user(username, pwd, salt, pfp_byte_arr):
     try:
         User.get(User.username == username)
     except User.DoesNotExist:
-        salt = bcrypt.gensalt()
-        pwd = bcrypt.hashpw(password.encode(), salt)
         new_user = User(username=username, password_hash=pwd, password_salt=salt, last_login=datetime.now(),
                         profile_picture=pfp_byte_arr)
         new_user.save()
@@ -60,5 +58,5 @@ def delete_user(username, password):
     return False
 
 
-if __name__ == '__main__':
-    pass
+def create():
+    User.create_table()

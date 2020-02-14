@@ -1,30 +1,32 @@
 import base64
 from queue import Queue
-
-from twisted.internet import reactor, task
-from twisted.internet.protocol import Protocol, connectionDone
-from twisted.internet.protocol import ClientFactory as Factory
 from pyDHFixed import DiffieHellman
 from Crypto.Cipher import AES
 import json
 
+from kivy.support import install_twisted_reactor
+
+install_twisted_reactor()
+
+from twisted.internet import reactor, task
+from twisted.internet.protocol import Protocol, connectionDone
+from twisted.internet.protocol import ClientFactory as Factory
+
 
 class Client(Protocol):
-    def __init__(self, username, destination):
+    def __init__(self):
         self.messageQueue = Queue()
         self.private = DiffieHellman()
         self.common = None
-        self.username = username
-        self.destination = destination
+        self.username = None
+        self.destination = None
 
     def connectionMade(self):
         print("\rConnected!\n>", end="")
         test = {
-            'username': self.username,
-            'destination': self.destination,
-            'command': 'key',
-            'content': self.private.gen_public_key(),
-            'tag': None
+            'username': None,
+            'command': 'handshake',
+            'mode': None
         }
         self.transport.write(json.dumps(test).encode())
         task.LoopingCall(self.processCommandQueue).start(0.5)
@@ -48,19 +50,28 @@ class Client(Protocol):
     def processCommandQueue(self):
         if not kbQueue.empty():
             queuedCommand = kbQueue.get()
-            if queuedCommand:
-                pass
-        # cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
-        # plaintext = kbQueue.get()
-        # encrypted, tag = cipher.encrypt_and_digest(plaintext.encode())
-        # packet = {
-        #     'username': self.username,
-        #     'destination': self.destination,
-        #     'command': 'send',
-        #     'content': base64.b64encode(encrypted).decode(),
-        #     'tag': base64.b64encode(tag).decode()
-        # }
-        # self.transport.write(json.dumps(packet).encode())
+            if queuedCommand['command'] == 'register':
+                packet = {
+                    'username': queuedCommand['args'][0],
+                    'command': 'register',
+                    'password': base64.b64encode(queuedCommand['args'][1]).decode(),
+                    'salt': base64.b64encode(queuedCommand['args'][2]).decode(),
+                    'pfp': base64.b64encode(queuedCommand['args'][3]).decode()
+                }
+                self.username = queuedCommand['args'][0]
+                self.transport.write(json.dumps(packet).encode())
+            elif queuedCommand['command'] == 'send':
+                cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
+                plaintext = kbQueue.get()
+                encrypted, tag = cipher.encrypt_and_digest(plaintext.encode())
+                packet = {
+                    'username': self.username,
+                    'destination': self.destination,
+                    'command': 'send',
+                    'content': base64.b64encode(encrypted).decode(),
+                    'tag': base64.b64encode(tag).decode()
+                }
+                self.transport.write(json.dumps(packet).encode())
 
     def disconnect(self):
         print("Disconnected")
@@ -69,7 +80,7 @@ class Client(Protocol):
 
 class ClientFactory(Factory):
     def buildProtocol(self, addr):
-        return Client("Alexey", "Alexey")
+        return Client()
 
     def startedConnecting(self, connector):
         print("Attempting to connect...")
@@ -84,5 +95,6 @@ class ClientFactory(Factory):
 kbQueue = Queue()
 
 if __name__ == '__main__':
+    pass
     reactor.connectTCP("localhost", 8123, ClientFactory())
     reactor.run()

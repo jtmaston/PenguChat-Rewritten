@@ -1,4 +1,5 @@
 import builtins
+from base64 import b64decode
 
 from twisted.internet import reactor, task
 from twisted.internet.protocol import Protocol, Factory, connectionDone
@@ -15,7 +16,6 @@ def log(info):
 class Server(Protocol):
     def __init__(self, factory):
         self.factory = factory
-        self.thing = "help"
         self.cache = []
 
     def connectionMade(self):
@@ -26,22 +26,31 @@ class Server(Protocol):
 
     def dataReceived(self, data):
         packet = json.loads(data)
-        if packet['command'] != "key":
-            print(packet)
+        print(packet)
         if packet['command'] == 'send' or packet['command'] == 'key':
-            try:
-                self.factory.connections[packet['username']]
-            except KeyError:
-                self.factory.connections[packet['username']] = self
             try:
                 self.factory.connections[packet['destination']].transport.write(json.dumps(packet).encode())
             except builtins.KeyError:
                 self.cache.append(packet)
 
-        if packet['command'] == 'disconnect':
+        elif packet['command'] == 'disconnect':
             print(packet['username'] + " disconnected.")
             del self.factory.connections[packet['username']]
             self.transport.loseConnection()
+
+        elif packet['command'] == 'register':
+            password = b64decode(packet['password'])
+            salt = b64decode(packet['salt'])
+            pfp = b64decode(packet['pfp'])
+            add_user(packet['username'], password, salt, pfp)
+
+        elif packet['command'] == 'handshake':
+            try:
+                self.factory.connections[packet['username']]
+            except KeyError:
+                self.factory.connections[packet['username']] = self
+            else:
+                self.transport.loseConnection()
 
     def clearCache(self):
         for i in self.cache:
@@ -56,6 +65,7 @@ class Server(Protocol):
 class ServerFactory(Factory):
     def __init__(self):
         self.connections = dict()
+        self.mode = None
 
     def buildProtocol(self, addr):
         return Server(self)
@@ -63,5 +73,6 @@ class ServerFactory(Factory):
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
+    create()
     print("Server started.")
     reactor.run()
