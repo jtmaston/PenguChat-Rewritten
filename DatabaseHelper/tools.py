@@ -26,7 +26,7 @@ class Messages(Model):
 
 def add_user(username, password, pfp_byte_arr):
     try:
-        query = User.get(User.username == username)
+        User.get(User.username == username)
     except User.DoesNotExist:
         salt = bcrypt.gensalt()
         pwd = bcrypt.hashpw(password.encode(), salt)

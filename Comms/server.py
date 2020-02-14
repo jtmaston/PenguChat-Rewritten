@@ -2,8 +2,8 @@ import builtins
 
 from twisted.internet import reactor, task
 from twisted.internet.protocol import Protocol, Factory, connectionDone
-from datetime import datetime
 import json
+from DatabaseHelper.tools import *
 
 logfile = open('server.log', 'a+')
 
@@ -26,7 +26,8 @@ class Server(Protocol):
 
     def dataReceived(self, data):
         packet = json.loads(data)
-        print(packet)
+        if packet['command'] != "key":
+            print(packet)
         if packet['command'] == 'send' or packet['command'] == 'key':
             try:
                 self.factory.connections[packet['username']]

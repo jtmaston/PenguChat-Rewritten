@@ -1,3 +1,4 @@
+import base64
 from queue import Queue
 
 from twisted.internet import reactor, task
@@ -7,27 +8,26 @@ from pyDHFixed import DiffieHellman
 from Crypto.Cipher import AES
 import json
 
-u1 = 'Alexey'
-u2 = 'Danny'
-
 
 class Client(Protocol):
-    def __init__(self):
+    def __init__(self, username, destination):
         self.messageQueue = Queue()
         self.private = DiffieHellman()
-        self.cipher = None
+        self.common = None
+        self.username = username
+        self.destination = destination
 
     def connectionMade(self):
-        print("Connected!")
+        print("\rConnected!\n>", end="")
         test = {
-            'username': u1,
-            'destination': u2,
+            'username': self.username,
+            'destination': self.destination,
             'command': 'key',
             'content': self.private.gen_public_key(),
             'tag': None
         }
         self.transport.write(json.dumps(test).encode())
-        task.LoopingCall(self.sendMessage).start(0.5)
+        task.LoopingCall(self.processCommandQueue).start(0.5)
 
     def connectionLost(self, reason=connectionDone):
         pass
@@ -36,55 +36,53 @@ class Client(Protocol):
         data = json.loads(data)
 
         if data['command'] == 'send':
-            encrypted = data['command']
-            tag = data['tag']
-            print(encrypted, tag)
-            print(f'\r{data["username"]}: {data["content"]}')
+            encrypted = base64.b64decode(data['content'].encode())
+            tag = base64.b64decode(data['tag'].encode())
+            cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
+            plain = cipher.decrypt_and_verify(encrypted, tag)
+            print(f'\r{data["username"]}: {plain.decode()}')
 
         if data['command'] == 'key':
-            common = self.private.gen_shared_key(data['content'])
-            self.cipher = AES.new(str(common).encode(), AES.MODE_SIV)
+            self.common = self.private.gen_shared_key(data['content'])
 
-    def sendMessage(self):
+    def processCommandQueue(self):
         if not kbQueue.empty():
-            plaintext = kbQueue.get()
-            encrypted, tag = self.cipher.encrypt_and_digest(plaintext.encode())
-            test = {
-                'username': u1,
-                'destination': u2,
-                'command': 'send',
-                'content': encrypted,
-                'tag': tag
-            }
+            queuedCommand = kbQueue.get()
+            if queuedCommand:
+                pass
+        # cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
+        # plaintext = kbQueue.get()
+        # encrypted, tag = cipher.encrypt_and_digest(plaintext.encode())
+        # packet = {
+        #     'username': self.username,
+        #     'destination': self.destination,
+        #     'command': 'send',
+        #     'content': base64.b64encode(encrypted).decode(),
+        #     'tag': base64.b64encode(tag).decode()
+        # }
+        # self.transport.write(json.dumps(packet).encode())
 
+    def disconnect(self):
+        print("Disconnected")
+        self.transport.loseConnection()
 
 
 class ClientFactory(Factory):
     def buildProtocol(self, addr):
-        return Client()
+        return Client("Alexey", "Alexey")
 
     def startedConnecting(self, connector):
         print("Attempting to connect...")
 
     def clientConnectionFailed(self, connector, reason):
-        print("An error occurred.")
-        self.stopFactory()
+        print("Conn failed.")
 
     def clientConnectionLost(self, connector, reason):
-        print("An error occurred.")
-        self.stopFactory()
+        print("Conn lost.")
 
 
 kbQueue = Queue()
 
-
-def kb():
-    while True:
-        data = input(">")
-        kbQueue.put(data)
-
-
 if __name__ == '__main__':
     reactor.connectTCP("localhost", 8123, ClientFactory())
-    reactor.callInThread(kb)
     reactor.run()
