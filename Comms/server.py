@@ -6,7 +6,7 @@ from twisted.internet.protocol import Protocol, Factory, connectionDone
 import json
 from DatabaseHelper.tools import *
 
-logfile = open('server.log', 'a+')
+logfile = open('server.log', 'w+')
 
 
 def log(info):
@@ -44,13 +44,27 @@ class Server(Protocol):
             pfp = b64decode(packet['pfp'])
             add_user(packet['username'], password, salt, pfp)
 
-        elif packet['command'] == 'handshake':
-            try:
-                self.factory.connections[packet['username']]
-            except KeyError:
-                self.factory.connections[packet['username']] = self
-            else:
-                self.transport.loseConnection()
+        elif packet['command'] == 'salt':
+            salt = get_salt_for_user(packet['username'])
+            if salt:
+                packet = {
+                    'command': 'salt',
+                    'username': packet['username'],
+                    'content': salt
+                }
+                self.transport.write(json.dumps(packet).encode())
+
+        elif packet['command'] == 'login':
+            if login(packet['username'], b64decode(packet['password'].encode())):
+                try:
+                    self.factory.connections[packet['username']]
+                except KeyError:
+                    self.factory.connections[packet['username']] = self
+                else:
+                    log(f"{packet['username']}: Disconnected")
+                    self.factory.connections[packet['username']].transport.loseConnection()
+                    self.factory.connections[packet['username']] = self
+                log(f"{packet['username']}: Connected")
 
     def clearCache(self):
         for i in self.cache:

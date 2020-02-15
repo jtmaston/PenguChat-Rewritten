@@ -1,5 +1,7 @@
 #:import C kivy.utils.get_color_from_hex
 #:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
+#:import Window kivy.core.window.Window
+
 <BoxLayout>:
     padding: 10
     spacing: 10
@@ -13,12 +15,20 @@
 <Label>:
     font_size: 25
 
-<PurpleButton@Button>:
+<BlueButton@Button>:
     font_size: 30
     height: 90
     size_hint: (1, None)
     background_normal: 'assets/button_normal.png'
     background_down: 'assets/button_down.png'
+    border: (2, 2, 2, 2)
+
+<RedButton@Button>:
+    font_size: 30
+    height: 90
+    size_hint: (1, None)
+    background_normal: 'assets/red_button_normal.png'
+    background_down: 'assets/red_button_down.png'
     border: (2, 2, 2, 2)
 
 <TextInput>:
@@ -75,8 +85,8 @@ ScreenManager:
                     text: 'Username:'
 
                 TextInput:
-                    id: username
-                    text: ''
+                    id: loginUsr
+                    text:'Alexey'
                     write_tab: False
                     multiline: False
 
@@ -84,17 +94,18 @@ ScreenManager:
                     text: 'Password'
 
                 TextInput:
-                    id: passwd
+                    id: loginPass
                     password: True
+                    text:'DatBoi30'
                     write_tab: False
                     multiline: False
-                    on_text_validate: app.authenticate()
+                    on_text_validate: app.login()
 
-            PurpleButton:
+            BlueButton:
                 color: 0, 0, 0, 1
                 text: 'Connect'
-                on_press: app.authenticate()
-            PurpleButton:
+                on_press: app.login()
+            BlueButton:
                 text: 'Sign up'
                 color: 0, 0, 0, 1
                 on_press: app.sign_up_redirect()
@@ -146,7 +157,7 @@ ScreenManager:
                     multiline: False
                     on_text_validate: app.sign_up()
 
-            PurpleButton:
+            BlueButton:
                 text: 'Sign up'
                 color: 0,0,0,1
                 on_press: app.sign_up()
@@ -154,3 +165,33 @@ ScreenManager:
 		BoxLayout:
 			orientation: 'vertical'
 
+    Screen:
+        on_pre_enter:
+            Window.size = (1080, 720)
+        name: 'chatRoom'
+        BoxLayout:
+            orientation: 'horizontal'
+
+            RedButton:
+                text: 'Disconnect'
+                on_press: app.disconnect()
+
+            ScrollView:
+                ChatLabel:
+                    id: chat_logs
+                    text: ''
+
+            BoxLayout:
+                height: 90
+                orientation: 'horizontal'
+                padding: 0
+                size_hint: (1, None)
+
+                TextInput:
+                    id: message
+                    on_text_validate: app.send()
+
+                Button:
+                    text: 'Send'
+                    on_press: app.send()
+                    size_hint: (0.3, 1)

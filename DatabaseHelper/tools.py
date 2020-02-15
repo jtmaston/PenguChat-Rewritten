@@ -39,11 +39,11 @@ def login(username, password):
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:
+        print("notfound")
         return False
     else:
         encrypted = query.password_hash.encode()
-        salt = query.password_salt.encode()
-        if bcrypt.hashpw(password.encode(), salt) == encrypted:
+        if password == encrypted:
             query.last_login = datetime.now()
             query.save()
             return True
@@ -60,3 +60,12 @@ def delete_user(username, password):
 
 def create():
     User.create_table()
+
+
+def get_salt_for_user(username):
+    try:
+        query = User.get(User.username == username)
+    except User.DoesNotExist:
+        return False
+    else:
+        return query.password_salt

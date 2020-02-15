@@ -13,7 +13,7 @@ from twisted.internet import reactor
 class ChatApp(App):
     def build(self):
         super(ChatApp, self).build()
-        reactor.connectTCP("localhost", 8123, ClientFactory())
+        self.root.current = 'login'
 
     def __init__(self):
         """Set login page size and screen"""
@@ -24,6 +24,7 @@ class ChatApp(App):
         self.pfp_byte_arr = None
 
     def on_request_close(self, timestamp):
+        reactor.stop()
         self.stop()
 
     def sign_up_redirect(self):
@@ -37,12 +38,16 @@ class ChatApp(App):
             salt = bcrypt.gensalt()
             pwd = bcrypt.hashpw(pwd.encode(), salt)
             command = {'command': 'register', 'args': (username, pwd, salt, self.pfp_byte_arr.getvalue())}
+            reactor.connectTCP("localhost", 8123, ClientFactory())
             kbQueue.put(command)
 
     def login(self):
-        pwd = self.root.ids.passwd.text
-        username = self.root.ids.username.text
-        
+        pwd = self.root.ids.loginPass.text
+        username = self.root.ids.loginUsr.text
+        command = {'command': 'login', 'go_around': False, 'args': (username, pwd)}
+        reactor.connectTCP("localhost", 8123, ClientFactory())
+        kbQueue.put(command)
+        self.root.current = 'chatRoom'
 
     def upload_image(self):
         path = fileopenbox(msg='Choose an image', multiple=False)

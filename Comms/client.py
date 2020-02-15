@@ -1,5 +1,7 @@
 import base64
 from queue import Queue
+
+import bcrypt
 from pyDHFixed import DiffieHellman
 from Crypto.Cipher import AES
 import json
@@ -20,15 +22,10 @@ class Client(Protocol):
         self.common = None
         self.username = None
         self.destination = None
+        self.salt = None
 
     def connectionMade(self):
         print("\rConnected!\n>", end="")
-        test = {
-            'username': None,
-            'command': 'handshake',
-            'mode': None
-        }
-        self.transport.write(json.dumps(test).encode())
         task.LoopingCall(self.processCommandQueue).start(0.5)
 
     def connectionLost(self, reason=connectionDone):
@@ -44,16 +41,19 @@ class Client(Protocol):
             plain = cipher.decrypt_and_verify(encrypted, tag)
             print(f'\r{data["username"]}: {plain.decode()}')
 
-        if data['command'] == 'key':
+        elif data['command'] == 'key':
             self.common = self.private.gen_shared_key(data['content'])
+
+        elif data['command'] == 'salt':
+            self.salt = data['content']
 
     def processCommandQueue(self):
         if not kbQueue.empty():
             queuedCommand = kbQueue.get()
             if queuedCommand['command'] == 'register':
                 packet = {
-                    'username': queuedCommand['args'][0],
                     'command': 'register',
+                    'username': queuedCommand['args'][0],
                     'password': base64.b64encode(queuedCommand['args'][1]).decode(),
                     'salt': base64.b64encode(queuedCommand['args'][2]).decode(),
                     'pfp': base64.b64encode(queuedCommand['args'][3]).decode()
@@ -65,13 +65,46 @@ class Client(Protocol):
                 plaintext = kbQueue.get()
                 encrypted, tag = cipher.encrypt_and_digest(plaintext.encode())
                 packet = {
+                    'command': 'send',
                     'username': self.username,
                     'destination': self.destination,
-                    'command': 'send',
                     'content': base64.b64encode(encrypted).decode(),
                     'tag': base64.b64encode(tag).decode()
                 }
                 self.transport.write(json.dumps(packet).encode())
+
+            elif queuedCommand['command'] == 'login' and not queuedCommand['go_around']:
+                self.callForSalt(queuedCommand['args'][0])
+                if not self.salt:
+                    print('going around')
+                    queuedCommand['go_around'] = True
+                    kbQueue.put(queuedCommand)
+                    return 0
+                pwd = bcrypt.hashpw(queuedCommand['args'][1].encode(), self.salt)
+                packet = {
+                    'command': 'login',
+                    'username': queuedCommand['args'][0],
+                    'password': base64.b64encode(pwd).decode(),
+                }
+            elif queuedCommand['command'] == 'login' and queuedCommand['go_around']:
+                if not self.salt:
+                    queuedCommand['go_around'] = True
+                    kbQueue.put(queuedCommand)
+                    return 0
+                pwd = bcrypt.hashpw(queuedCommand['args'][1].encode(), self.salt.encode())
+                packet = {
+                    'command': 'login',
+                    'username': queuedCommand['args'][0],
+                    'password': base64.b64encode(pwd).decode(),
+                }
+                self.transport.write(json.dumps(packet).encode())
+
+    def callForSalt(self, username):
+        packet = {
+            'command': 'salt',
+            'username': username,
+        }
+        self.transport.write(json.dumps(packet).encode())
 
     def disconnect(self):
         print("Disconnected")
@@ -95,6 +128,5 @@ class ClientFactory(Factory):
 kbQueue = Queue()
 
 if __name__ == '__main__':
-    pass
     reactor.connectTCP("localhost", 8123, ClientFactory())
     reactor.run()
