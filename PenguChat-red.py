@@ -51,7 +51,7 @@ class ChatApp(App):
 
     def upload_image(self):
         path = fileopenbox(msg='Choose an image', multiple=False)
-        if path is not None: # test
+        if path is not None:
             self.pfp_byte_arr = create_thumbnail(path)
             self.placeholder.texture = CoreImage(self.pfp_byte_arr, ext='png').texture
             self.root.current = 'signup'
