@@ -13,7 +13,7 @@ from twisted.internet import reactor
 class ChatApp(App):
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'login'
+        self.root.current = 'chatRoom'
 
     def __init__(self):
         """Set login page size and screen"""
@@ -59,4 +59,3 @@ class ChatApp(App):
 
 if __name__ == '__main__':
     ChatApp().run()
-# git test

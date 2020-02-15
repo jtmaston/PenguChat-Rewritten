@@ -19,7 +19,7 @@ class Server(Protocol):
         self.cache = []
 
     def connectionMade(self):
-        task.LoopingCall(self.clearCache).start(1)
+        task.LoopingCall(self.clear_cache).start(1)
 
     def connectionLost(self, reason=connectionDone):
         log(datetime.now().strftime("%m/%d/%Y:%H:%M:%S") + " | " + f"Connection closed: {reason}")
@@ -66,7 +66,7 @@ class Server(Protocol):
                     self.factory.connections[packet['username']] = self
                 log(f"{packet['username']}: Connected")
 
-    def clearCache(self):
+    def clear_cache(self):
         for i in self.cache:
             try:
                 self.factory.connections[i['destination']].transport.write(json.dumps(i).encode())

@@ -26,7 +26,7 @@ class Client(Protocol):
 
     def connectionMade(self):
         print("\rConnected!\n>", end="")
-        task.LoopingCall(self.processCommandQueue).start(0.5)
+        task.LoopingCall(self.process_command_queue).start(0.5)
 
     def connectionLost(self, reason=connectionDone):
         pass
@@ -47,20 +47,20 @@ class Client(Protocol):
         elif data['command'] == 'salt':
             self.salt = data['content']
 
-    def processCommandQueue(self):
+    def process_command_queue(self):
         if not kbQueue.empty():
-            queuedCommand = kbQueue.get()
-            if queuedCommand['command'] == 'register':
+            queued_command = kbQueue.get()
+            if queued_command['command'] == 'register':
                 packet = {
                     'command': 'register',
-                    'username': queuedCommand['args'][0],
-                    'password': base64.b64encode(queuedCommand['args'][1]).decode(),
-                    'salt': base64.b64encode(queuedCommand['args'][2]).decode(),
-                    'pfp': base64.b64encode(queuedCommand['args'][3]).decode()
+                    'username': queued_command['args'][0],
+                    'password': base64.b64encode(queued_command['args'][1]).decode(),
+                    'salt': base64.b64encode(queued_command['args'][2]).decode(),
+                    'pfp': base64.b64encode(queued_command['args'][3]).decode()
                 }
-                self.username = queuedCommand['args'][0] # vcs
+                self.username = queued_command['args'][0] # vcs
                 self.transport.write(json.dumps(packet).encode())
-            elif queuedCommand['command'] == 'send':
+            elif queued_command['command'] == 'send':
                 cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
                 plaintext = kbQueue.get()
                 encrypted, tag = cipher.encrypt_and_digest(plaintext.encode())
@@ -73,33 +73,33 @@ class Client(Protocol):
                 }
                 self.transport.write(json.dumps(packet).encode())
 
-            elif queuedCommand['command'] == 'login' and not queuedCommand['go_around']:
-                self.callForSalt(queuedCommand['args'][0])
+            elif queued_command['command'] == 'login' and not queued_command['go_around']:
+                self.call_for_salt(queued_command['args'][0])
                 if not self.salt:
                     print('going around')
-                    queuedCommand['go_around'] = True
-                    kbQueue.put(queuedCommand)
+                    queued_command['go_around'] = True
+                    kbQueue.put(queued_command)
                     return 0
-                pwd = bcrypt.hashpw(queuedCommand['args'][1].encode(), self.salt)
+                pwd = bcrypt.hashpw(queued_command['args'][1].encode(), self.salt)
                 packet = {
                     'command': 'login',
-                    'username': queuedCommand['args'][0],
+                    'username': queued_command['args'][0],
                     'password': base64.b64encode(pwd).decode(),
                 }
-            elif queuedCommand['command'] == 'login' and queuedCommand['go_around']:
+            elif queued_command['command'] == 'login' and queued_command['go_around']:
                 if not self.salt:
-                    queuedCommand['go_around'] = True
-                    kbQueue.put(queuedCommand)
+                    queued_command['go_around'] = True
+                    kbQueue.put(queued_command)
                     return 0
-                pwd = bcrypt.hashpw(queuedCommand['args'][1].encode(), self.salt.encode())
+                pwd = bcrypt.hashpw(queued_command['args'][1].encode(), self.salt.encode())
                 packet = {
                     'command': 'login',
-                    'username': queuedCommand['args'][0],
+                    'username': queued_command['args'][0],
                     'password': base64.b64encode(pwd).decode(),
                 }
                 self.transport.write(json.dumps(packet).encode())
 
-    def callForSalt(self, username):
+    def call_for_salt(self, username):
         packet = {
             'command': 'salt',
             'username': username,
