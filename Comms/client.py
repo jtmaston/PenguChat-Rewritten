@@ -58,7 +58,7 @@ class Client(Protocol):
                     'salt': base64.b64encode(queuedCommand['args'][2]).decode(),
                     'pfp': base64.b64encode(queuedCommand['args'][3]).decode()
                 }
-                self.username = queuedCommand['args'][0]
+                self.username = queuedCommand['args'][0] # vcs
                 self.transport.write(json.dumps(packet).encode())
             elif queuedCommand['command'] == 'send':
                 cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
