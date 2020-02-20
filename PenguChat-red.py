@@ -1,6 +1,3 @@
-import os
-# os.environ["KIVY_NO_CONSOLELOG"] = "1"
-
 from kivy.config import Config
 from kivy.app import App
 from kivy.uix.button import Button
@@ -8,10 +5,7 @@ from kivy.uix.image import Image
 from kivy.core.image import Image as CoreImage
 from easygui import fileopenbox
 import bcrypt
-
 from imagecropper import create_thumbnail
-from Comms.client import kbQueue
-from Comms.client import ClientFactory
 from twisted.internet import reactor
 
 
@@ -44,15 +38,15 @@ class ChatApp(App):
             salt = bcrypt.gensalt()
             pwd = bcrypt.hashpw(pwd.encode(), salt)
             command = {'command': 'register', 'args': (username, pwd, salt, self.pfp_byte_arr.getvalue())}
-            reactor.connectTCP("localhost", 8123, ClientFactory())
-            kbQueue.put(command)
+            # reactor.connectTCP("localhost", 8123, ClientFactory())
+            # kbQueue.put(command)
 
     def login(self):
         pwd = self.root.ids.loginPass.text
         username = self.root.ids.loginUsr.text
         command = {'command': 'login', 'args': (username, pwd)}
-        reactor.connectTCP("localhost", 8123, ClientFactory())
-        kbQueue.put(command)
+        # reactor.connectTCP("localhost", 8123, ClientFactory())
+        # kbQueue.put(command)
         self.root.current = 'chatRoom'
         self.load_friends()
 
