@@ -1,10 +1,11 @@
 import builtins
+import json
 from base64 import b64decode
 
 from twisted.internet import reactor, task
 from twisted.internet.protocol import Protocol, Factory, connectionDone
-import json
-from Server.ServerDatabase.tools import *
+
+from Server.DBHandler import *
 
 
 class Server(Protocol):
@@ -36,7 +37,7 @@ class Server(Protocol):
             password = b64decode(packet['password'])
             salt = b64decode(packet['salt'])
             pfp = b64decode(packet['pfp'])
-            add_user(packet['username'], password, salt, pfp)
+            add_user(packet['username'], password, salt)
 
         elif packet['command'] == 'salt':
             salt = get_salt_for_user(packet['username'])

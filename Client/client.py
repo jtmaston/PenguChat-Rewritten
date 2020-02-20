@@ -12,7 +12,7 @@ from kivy.support import install_twisted_reactor
 from kivy.uix.button import Button
 from pyDHFixed import DiffieHellman
 
-from ClientDatabase.tools import add_key, get_key
+from Client.DBHandler import get_key, add_key
 
 install_twisted_reactor()
 
