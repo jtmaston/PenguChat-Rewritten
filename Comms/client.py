@@ -5,10 +5,11 @@ import bcrypt
 from pyDHFixed import DiffieHellman
 from Crypto.Cipher import AES
 import json
+from ClientDatabase import *
 
-# from kivy.support import install_twisted_reactor
+from kivy.support import install_twisted_reactor
 
-# install_twisted_reactor()
+install_twisted_reactor()
 
 from twisted.internet import reactor, task
 from twisted.internet.protocol import Protocol, connectionDone
@@ -20,24 +21,21 @@ class Client(Protocol):
         self.messageQueue = Queue()
         self.private = DiffieHellman()
         self.common = None
-        self.username = "Danny"
-        self.destination = 'Dave'
+        self.username = "Dave"
+        self.destination = 'Danny'
         self.salt = None
 
     def connectionMade(self):
         print("\rConnected!\n>", end="")
-        keyExchangePacket = {
-            'username': self.username,
-            'destination': self.destination,
-            'command': 'key',
-            'content': self.private.gen_public_key(),
-            'tag': None
-        }
-        self.transport.write(json.dumps(keyExchangePacket).encode())
-        task.LoopingCall(self.process_command_queue).start(0.5)
+        key = get_key(self.destination)
+        if key:
+            self.common = key
+        else:
+            pass
+        self.process_command_queue()
 
     def connectionLost(self, reason=connectionDone):
-        pass
+        print(reason.value)
 
     def dataReceived(self, data):
         data = json.loads(data)
@@ -51,10 +49,13 @@ class Client(Protocol):
 
         elif data['command'] == 'key':
             self.common = self.private.gen_shared_key(data['content'])
-            print(self.common)
+            add_key(self.destination, self.common)
 
         elif data['command'] == 'salt':
             self.salt = data['content']
+
+        elif data['command'] == 'login OK':
+            task.LoopingCall(self.process_command_queue).start(0.5)
 
     def process_command_queue(self):
         if not kbQueue.empty():
@@ -67,7 +68,7 @@ class Client(Protocol):
                     'salt': base64.b64encode(queued_command['args'][2]).decode(),
                     'pfp': base64.b64encode(queued_command['args'][3]).decode()
                 }
-                self.username = queued_command['args'][0] # vcs
+                self.username = queued_command['args'][0]  # vcs
                 self.transport.write(json.dumps(packet).encode())
             elif queued_command['command'] == 'send':
                 cipher = AES.new(str(self.common).encode(), AES.MODE_SIV)
@@ -82,31 +83,22 @@ class Client(Protocol):
                 }
                 self.transport.write(json.dumps(packet).encode())
 
-            elif queued_command['command'] == 'login' and not queued_command['go_around']:
-                self.call_for_salt(queued_command['args'][0])
-                if not self.salt:
-                    print('going around')
-                    queued_command['go_around'] = True
+            elif queued_command['command'] == 'login':
+                if self.common:
+                    self.call_for_salt(queued_command['args'][0])
+                    if not self.salt:
+                        print('going round')
+                        kbQueue.put(queued_command)
+                        return 0
+                    pwd = bcrypt.hashpw(queued_command['args'][1].encode(), self.salt.encode())
+                    packet = {
+                        'command': 'login',
+                        'username': queued_command['args'][0],
+                        'password': base64.b64encode(pwd).decode(),
+                    }
+                    self.transport.write(json.dumps(packet).encode())
+                else:
                     kbQueue.put(queued_command)
-                    return 0
-                pwd = bcrypt.hashpw(queued_command['args'][1].encode(), self.salt)
-                packet = {
-                    'command': 'login',
-                    'username': queued_command['args'][0],
-                    'password': base64.b64encode(pwd).decode(),
-                }
-            elif queued_command['command'] == 'login' and queued_command['go_around']:
-                if not self.salt:
-                    queued_command['go_around'] = True
-                    kbQueue.put(queued_command)
-                    return 0
-                pwd = bcrypt.hashpw(queued_command['args'][1].encode(), self.salt.encode())
-                packet = {
-                    'command': 'login',
-                    'username': queued_command['args'][0],
-                    'password': base64.b64encode(pwd).decode(),
-                }
-                self.transport.write(json.dumps(packet).encode())
 
     def call_for_salt(self, username):
         packet = {
@@ -139,3 +131,13 @@ kbQueue = Queue()
 if __name__ == '__main__':
     reactor.connectTCP("localhost", 8123, ClientFactory())
     reactor.run()
+
+"""                 ARCHIVE                     """
+# key_exchange_packet = {
+#             'username': self.username,
+#             'destination': self.destination,
+#             'command': 'key',
+#             'content': self.private.gen_public_key(),
+#             'tag': None
+#         }
+#         self.transport.write(json.dumps(key_exchange_packet).encode())

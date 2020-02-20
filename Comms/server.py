@@ -6,12 +6,6 @@ from twisted.internet.protocol import Protocol, Factory, connectionDone
 import json
 from ServerDatabase.tools import *
 
-logfile = open('server.log', 'w+')
-
-
-def log(info):
-    logfile.write(info)
-
 
 class Server(Protocol):
     def __init__(self, factory):
@@ -22,7 +16,7 @@ class Server(Protocol):
         task.LoopingCall(self.clear_cache).start(1)
 
     def connectionLost(self, reason=connectionDone):
-        log(datetime.now().strftime("%m/%d/%Y:%H:%M:%S") + " | " + f"Connection closed: {reason}")
+        pass
 
     def dataReceived(self, data):
         packet = json.loads(data)
@@ -61,10 +55,11 @@ class Server(Protocol):
                 except KeyError:
                     self.factory.connections[packet['username']] = self
                 else:
-                    log(f"{packet['username']}: Disconnected")
                     self.factory.connections[packet['username']].transport.loseConnection()
                     self.factory.connections[packet['username']] = self
-                log(f"{packet['username']}: Connected")
+                print(packet['username'] + ' logged in')
+                reply_packet = {'username': packet['username'], 'command': 'login OK'}
+                self.transport.write(json.dumps(reply_packet).encode())
 
     def clear_cache(self):
         for i in self.cache:

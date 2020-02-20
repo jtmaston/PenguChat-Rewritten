@@ -50,7 +50,7 @@ class ChatApp(App):
     def login(self):
         pwd = self.root.ids.loginPass.text
         username = self.root.ids.loginUsr.text
-        command = {'command': 'login', 'go_around': False, 'args': (username, pwd)}
+        command = {'command': 'login', 'args': (username, pwd)}
         reactor.connectTCP("localhost", 8123, ClientFactory())
         kbQueue.put(command)
         self.root.current = 'chatRoom'
