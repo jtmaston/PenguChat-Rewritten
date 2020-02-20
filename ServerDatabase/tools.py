@@ -15,15 +15,6 @@ class User(Model):
     class Meta:
         database = db
 
-
-class Messages(Model):
-    sender = CharField(100)
-    destination = CharField(100)
-    message_text = TextField(100)
-    attachments = BlobField(null=True)
-    timestamp = DateTimeField()
-
-
 def add_user(username, pwd, salt, pfp_byte_arr):
     try:
         User.get(User.username == username)

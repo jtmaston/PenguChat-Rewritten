@@ -1,3 +1,6 @@
+import os
+# os.environ["KIVY_NO_CONSOLELOG"] = "1"
+
 from kivy.config import Config
 from kivy.app import App
 from kivy.uix.button import Button
@@ -24,6 +27,7 @@ class ChatApp(App):
         Config.set('graphics', 'height', '700')
         self.placeholder = Image(source="Assets/placehold.png")
         self.pfp_byte_arr = None
+        Config.write()
 
     def on_request_close(self, timestamp):
         reactor.stop()
@@ -62,7 +66,7 @@ class ChatApp(App):
     def load_friends(self):
         names = ['Alex', 'Jay', 'Marc']
         for i in names:
-            self.root.ids.messageList.add_widget(Button(text=i, on_press=self.test))
+            self.root.ids.messageList.add_widget(Button(text=i, on_press=print))
 
 
 if __name__ == '__main__':
