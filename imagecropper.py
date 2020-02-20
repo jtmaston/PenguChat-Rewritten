@@ -1,6 +1,9 @@
 #!/usr/local/bin/python3
 import io
 import os
+import sys
+import tempfile
+import time
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -48,10 +51,11 @@ def create_thumbnail(path):
     size = 180, 180
     img = Image.fromarray(np_image)
     img.thumbnail(size, Image.ANTIALIAS)
-
+    os.mkdir('.temp')
     img.save('.temp/temp.png', format='png')
     byte_arr = io.BytesIO(open(".temp/temp.png", 'rb').read())
     os.remove('.temp/temp.png')
+    os.rmdir('.temp')
     return byte_arr
 
 

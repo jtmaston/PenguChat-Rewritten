@@ -1,9 +1,11 @@
 from kivy.config import Config
 from kivy.app import App
+from kivy.uix.button import Button
 from kivy.uix.image import Image
 from kivy.core.image import Image as CoreImage
 from easygui import fileopenbox
 import bcrypt
+
 from imagecropper import create_thumbnail
 from Comms.client import kbQueue
 from Comms.client import ClientFactory
@@ -13,7 +15,7 @@ from twisted.internet import reactor
 class ChatApp(App):
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'chatRoom'
+        self.root.current = 'login'
 
     def __init__(self):
         """Set login page size and screen"""
@@ -48,6 +50,7 @@ class ChatApp(App):
         reactor.connectTCP("localhost", 8123, ClientFactory())
         kbQueue.put(command)
         self.root.current = 'chatRoom'
+        self.load_friends()
 
     def upload_image(self):
         path = fileopenbox(msg='Choose an image', multiple=False)
@@ -55,6 +58,11 @@ class ChatApp(App):
             self.pfp_byte_arr = create_thumbnail(path)
             self.placeholder.texture = CoreImage(self.pfp_byte_arr, ext='png').texture
             self.root.current = 'signup'
+
+    def load_friends(self):
+        names = ['Alex', 'Jay', 'Marc']
+        for i in names:
+            self.root.ids.messageList.add_widget(Button(text=i, on_press=self.test))
 
 
 if __name__ == '__main__':

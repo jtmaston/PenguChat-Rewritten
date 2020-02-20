@@ -6,9 +6,9 @@ from pyDHFixed import DiffieHellman
 from Crypto.Cipher import AES
 import json
 
-from kivy.support import install_twisted_reactor
+# from kivy.support import install_twisted_reactor
 
-install_twisted_reactor()
+# install_twisted_reactor()
 
 from twisted.internet import reactor, task
 from twisted.internet.protocol import Protocol, connectionDone
@@ -20,12 +20,20 @@ class Client(Protocol):
         self.messageQueue = Queue()
         self.private = DiffieHellman()
         self.common = None
-        self.username = None
-        self.destination = None
+        self.username = "Danny"
+        self.destination = 'Dave'
         self.salt = None
 
     def connectionMade(self):
         print("\rConnected!\n>", end="")
+        keyExchangePacket = {
+            'username': self.username,
+            'destination': self.destination,
+            'command': 'key',
+            'content': self.private.gen_public_key(),
+            'tag': None
+        }
+        self.transport.write(json.dumps(keyExchangePacket).encode())
         task.LoopingCall(self.process_command_queue).start(0.5)
 
     def connectionLost(self, reason=connectionDone):
@@ -43,6 +51,7 @@ class Client(Protocol):
 
         elif data['command'] == 'key':
             self.common = self.private.gen_shared_key(data['content'])
+            print(self.common)
 
         elif data['command'] == 'salt':
             self.salt = data['content']
