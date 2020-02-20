@@ -5,7 +5,7 @@ import bcrypt
 from pyDHFixed import DiffieHellman
 from Crypto.Cipher import AES
 import json
-from ClientDatabase import *
+from Client.ClientDatabase import *
 
 from kivy.support import install_twisted_reactor
 

@@ -120,21 +120,6 @@ ScreenManager:
 		name: 'signup'
 		BoxLayout:
 			orientation: 'vertical'
-
-			CircularButton:
-				size: dp(150), dp(150)
-				background_color: 0, 0, 0, 0
-				size_hint: None, None
-				pos_hint: {'center_x': .5, 'center_y': .8}
-
-				on_press: app.upload_image()
-				Image:
-					texture: app.placeholder.texture
-					allow_stretch: True
-					height: self.parent.height
-					width: self.parent.width
-					x :self.parent.x
-					y: self.parent.y
 			GridLayout:
 				LoginLabel:
 					text: 'Username:'
