@@ -1,6 +1,6 @@
-from peewee import *
-import bcrypt
 from datetime import datetime
+
+from peewee import *
 
 db = SqliteDatabase('D:/pc.db')
 
@@ -10,18 +10,16 @@ class User(Model):
     password_hash = TextField()
     password_salt = TextField()
     last_login = DateTimeField()
-    profile_picture = BlobField()
 
     class Meta:
         database = db
 
 
-def add_user(username, pwd, salt, pfp_byte_arr):
+def add_user(username, pwd, salt):
     try:
         User.get(User.username == username)
     except User.DoesNotExist:
-        new_user = User(username=username, password_hash=pwd, password_salt=salt, last_login=datetime.now(),
-                        profile_picture=pfp_byte_arr)
+        new_user = User(username=username, password_hash=pwd, password_salt=salt, last_login=datetime.now())
         new_user.save()
     else:
         return False

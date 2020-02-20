@@ -1,8 +1,7 @@
+from datetime import datetime
 from os import getenv, makedirs
 
-import peewee
 from peewee import *
-from datetime import datetime
 
 path = getenv('APPDATA')
 path += '\\PenguChat\\DB\\messages.db'
@@ -23,7 +22,6 @@ class Messages(Model):
     sender = CharField(100)
     destination = CharField(100)
     message_text = TextField(100)
-    attachments = BlobField(null=True)
     timestamp = DateTimeField()
 
     class Meta:
