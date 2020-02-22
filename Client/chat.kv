@@ -1,7 +1,7 @@
 #:import C kivy.utils.get_color_from_hex
 #:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
 #:import Window kivy.core.window.Window
-# import Clock from kivy.clock
+#:import RecycleView kivy.uix.recycleview
 <BoxLayout>:
 	padding: 10
 	spacing: 10
@@ -83,6 +83,10 @@
 
 <LoadingScreen@Screen>
     on_pre_enter: print("here")
+
+<FriendList@RecycleView>
+    viewclass: 'Button'
+
 
 ScreenManager:
 	transition: RiseInTransition()
@@ -178,12 +182,13 @@ ScreenManager:
 		name: 'chat_room'
 		BoxLayout:
 			orientation: 'horizontal'
-			ScrollView:
-				do_scroll_y: True
-				StackLayout:
-				    id: messageList
-					size_hint: 1, None
 
+			FriendList:
+			    RecycleBoxLayout:
+			        id: 'friend_list'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    orientation: 'vertical'
 
 			BoxLayout:
 				height: 90

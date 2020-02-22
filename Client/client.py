@@ -7,7 +7,6 @@ from Crypto.Cipher import AES
 from kivy.app import App
 from kivy.config import Config
 from kivy.support import install_twisted_reactor
-from kivy.uix.button import Button
 from pyDHFixed import DiffieHellman
 
 install_twisted_reactor()
@@ -33,8 +32,9 @@ class ChatApp(App):
 
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
-        """Establish a secure connection"""
+
         self.username = None
+        self.destination = None
 
     def on_request_close(self, timestamp):
         self.stop()
@@ -73,9 +73,9 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(login_packet).encode())
 
     def load_friends(self):
-        names = []
+        names = ['Mark', 'Lee', 'Charlie', 'Danny', 'Lewis', 'Dennis', 'Etc', 'Patrick']
         for i in names:
-            self.root.ids.messageList.add_widget(Button(text=i, on_press=print))
+            self.root.ids.friend_list.data = {'text': i}
 
     def send(self):
         self.factory.client.transport.write("Hello".encode())
@@ -102,7 +102,13 @@ class ChatApp(App):
             'command': 'secure',
             'key': public
         }
-        self.factory.client.transport.write(dumps(command_packet).encode())
+        try:
+            self.factory.client.transport.write(dumps(command_packet).encode())
+        except AttributeError:
+            task.deferLater(reactor, 100, self.secure)
+
+    def change_chat(self, button_object):
+        self.destination = button_object.text
 
 
 class Client(Protocol):
