@@ -37,6 +37,7 @@ class ChatApp(App):
         self.destination = None
 
     def on_request_close(self, timestamp):
+        print(f"Closed at {timestamp}")
         self.stop()
 
     def sign_up_redirect(self):
@@ -75,10 +76,10 @@ class ChatApp(App):
     def load_friends(self):
         names = ['Mark', 'Lee', 'Charlie', 'Danny', 'Lewis', 'Dennis', 'Etc', 'Patrick']
         for i in names:
-            self.root.ids.friend_list.data = {'text': i}
+            self.root.ids.friend_list.data.append({'text': i, 'on_press': self.wrapper(i), 'size_hint': (1, None)})
 
     def send(self):
-        self.factory.client.transport.write("Hello".encode())
+        print(self.destination)
 
     def poll_commands(self):
         if not Commands.empty():
@@ -87,10 +88,8 @@ class ChatApp(App):
                 if command['command'] == 'server_key':
                     self.server_key = self.private.gen_shared_key(command['content'])
                 elif command['command'] == 'login ok':
-                    self.load_friends()
                     self.root.current = 'chat_room'
                 elif command['command'] == 'signup ok':
-                    self.load_friends()
                     self.root.current = 'chat_room'
 
     def secure(self):
@@ -105,11 +104,26 @@ class ChatApp(App):
         try:
             self.factory.client.transport.write(dumps(command_packet).encode())
         except AttributeError:
-            task.deferLater(reactor, 100, self.secure)
+            task.deferLater(reactor, 5, self.secure)
 
-    def change_chat(self, button_object):
-        self.destination = button_object.text
+    def wrapper(self, name):
+        def change_chat(parent=self):
+            wid = self.root.ids.message_box
+            try:
+                wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
+                del wid.saved_attrs
+                self.root.ids.message_box = wid
+                parent.destination = name
+            except AttributeError:
+                parent.destination = name
 
+        return change_chat
+
+    def hide_message_box(self):
+        wid = self.root.ids.message_box
+        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
+        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
+        self.root.ids.message_box = wid
 
 class Client(Protocol):
     def __init__(self):
@@ -130,6 +144,8 @@ class Client(Protocol):
                 Commands.put({'command': 'login ok'})
             elif packet['command'] == 'signup ok':
                 Commands.put({'command': 'signup ok'})
+            elif packet['command'] == 'not found!':
+                Commands.put({'command': 'not found!'})
 
     def connectionLost(self, reason=connectionDone):
         print(reason.value)

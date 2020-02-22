@@ -55,7 +55,6 @@
 	text_size: (self.width, None)
 	halign: 'left'
 	valign: 'top'
-	padding: (-10, 0)  # fixed in Kivy 1.8.1
 	size_hint: (1, None)
 	height: self.texture_size[1]
 	markup: True
@@ -86,6 +85,10 @@
 
 <FriendList@RecycleView>
     viewclass: 'Button'
+    RecycleBoxLayout:
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: 'vertical'
 
 
 ScreenManager:
@@ -174,6 +177,8 @@ ScreenManager:
 	Screen:
 		on_pre_enter:
 			Window.size = (1080, 720)
+			app.load_friends()
+			app.hide_message_box()
 		canvas:
 			Rectangle:
 				source:"assets/large-wallpaper.jpg"
@@ -182,25 +187,30 @@ ScreenManager:
 		name: 'chat_room'
 		BoxLayout:
 			orientation: 'horizontal'
-
-			FriendList:
-			    RecycleBoxLayout:
-			        id: 'friend_list'
+			RecycleView:
+			    id: friend_list
+			    viewclass: 'Button'
+                RecycleBoxLayout:
                     size_hint_y: None
                     height: self.minimum_height
                     orientation: 'vertical'
+            BoxLayout:
+                orientation: 'vertical'
+                ChatLabel:
+                    id: message_area
+                    text: 'hello'
+                BoxLayout:
+                    id: message_box
+                    height: 90
+                    orientation: 'horizontal'
+                    padding: 0
+                    size_hint: (1, None)
 
-			BoxLayout:
-				height: 90
-				orientation: 'horizontal'
-				padding: 0
-				size_hint: (1, None)
+                    TextInput:
+                        id: message_content
+                        on_text_validate: app.send()
 
-				TextInput:
-					id: message
-					on_text_validate: app.send()
-
-				Button:
-					text: 'Send'
-					on_press: app.send()
-					size_hint: (0.3, 1)
+                    Button:
+                        text: 'Send'
+                        on_press: app.send()
+                        size_hint: (0.3, 1)
