@@ -22,7 +22,7 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'login'
+        self.root.current = 'chat_room'
         task.LoopingCall(self.poll_commands).start(0.5)
 
     def __init__(self):
@@ -131,7 +131,7 @@ class Client(Protocol):
         self.destination = None
 
     def connectionMade(self):
-        print("\rConnected!\n>", end="")
+        print("Connected!", end="")
 
     def dataReceived(self, data):
         print(data)

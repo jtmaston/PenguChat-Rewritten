@@ -186,31 +186,47 @@ ScreenManager:
 				size: self.size
 		name: 'chat_room'
 		BoxLayout:
-			orientation: 'horizontal'
-			RecycleView:
-			    id: friend_list
-			    viewclass: 'Button'
-                RecycleBoxLayout:
-                    size_hint_y: None
-                    height: self.minimum_height
-                    orientation: 'vertical'
+		    orientation: 'vertical'
+		    spacing: 0
+		    BoxLayout:
+		        size_hint: 1, 1
+                id: top_bar
+                height: 60
+                orientation: 'horizontal'
+                size_hint: (1, None)
+                spacing: 0
+                TextInput:
+                    id: message_content
+                    on_text_validate: app.send()
             BoxLayout:
-                orientation: 'vertical'
-                ChatLabel:
-                    id: message_area
-                    text: 'hello'
+                spacing: 0
+                orientation: 'horizontal'
+                RecycleView:
+                    id: friend_list
+                    viewclass: 'Button'
+                    RecycleBoxLayout:
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
                 BoxLayout:
-                    id: message_box
-                    height: 90
-                    orientation: 'horizontal'
-                    padding: 0
-                    size_hint: (1, None)
+                    spacing: 0
+                    orientation: 'vertical'
 
-                    TextInput:
-                        id: message_content
-                        on_text_validate: app.send()
+                    ChatLabel:
+                        id: message_area
+                        text: 'hello'
+                    BoxLayout:
+                        spacing: 0
+                        id: message_box
+                        height: 90
+                        orientation: 'horizontal'
+                        size_hint: (1, None)
 
-                    Button:
-                        text: 'Send'
-                        on_press: app.send()
-                        size_hint: (0.3, 1)
+                        TextInput:
+                            id: message_content
+                            on_text_validate: app.send()
+
+                        Button:
+                            text: 'Send'
+                            on_press: app.send()
+                            size_hint: (0.3, 1)
