@@ -4,7 +4,6 @@
 ServerManager.py
 auth.db
 archive.py
-PacketTools.py
 .idea
 *.iml
 out
