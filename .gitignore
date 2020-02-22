@@ -2,7 +2,8 @@
 # IntelliJ project files
 
 ServerManager.py
-
+auth.db
+archive.py
 .idea
 *.iml
 out
