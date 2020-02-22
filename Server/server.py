@@ -1,10 +1,16 @@
-import builtins
 import json
+from base64 import b64decode
 
-from twisted.internet import reactor, task
+from Crypto.Cipher import AES
+from pyDHFixed import DiffieHellman
+from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory, connectionDone
 
 from Server.DBHandler import *
+
+
+def get_transportable_data(packet):
+    return json.dumps(packet).encode()
 
 
 class Server(Protocol):
@@ -13,63 +19,52 @@ class Server(Protocol):
         self.cache = []
 
     def connectionMade(self):
-        task.LoopingCall(self.clear_cache).start(1)
+        pass
 
     def connectionLost(self, reason=connectionDone):
         pass
 
     def dataReceived(self, data):
 
-        # packet = json.loads(data)
+        packet = json.loads(data)
         print(data)
-        # if packet['command'] == 'send' or packet['command'] == 'key':
-        #     try:
-        #         self.factory.connections[packet['destination']].transport.write(json.dumps(packet).encode())
-        #     except builtins.KeyError:
-        #         self.cache.append(packet)
-        #
-        # elif packet['command'] == 'disconnect':
-        #     print(packet['username'] + " disconnected.")
-        #     del self.factory.connections[packet['username']]
-        #     self.transport.loseConnection()
-        #
-        # elif packet['command'] == 'register':
-        #     password = b64decode(packet['password'])
-        #     salt = b64decode(packet['salt'])
-        #     pfp = b64decode(packet['pfp'])
-        #     add_user(packet['username'], password, salt)
-        #
-        # elif packet['command'] == 'salt':
-        #     salt = get_salt_for_user(packet['username'])
-        #     if salt:
-        #         packet = {
-        #             'command': 'salt',
-        #             'username': packet['username'],
-        #             'content': salt
-        #         }
-        #         self.transport.write(json.dumps(packet).encode())
-        #
-        # elif packet['command'] == 'login':
-        #     if login(packet['username'], b64decode(packet['password'].encode())):
-        #         try:
-        #             self.factory.connections[packet['username']]
-        #         except KeyError:
-        #             self.factory.connections[packet['username']] = self
-        #         else:
-        #             self.factory.connections[packet['username']].transport.loseConnection()
-        #             self.factory.connections[packet['username']] = self
-        #         print(packet['username'] + ' logged in')
-        #         reply_packet = {'username': packet['username'], 'command': 'login OK'}
-        #         self.transport.write(json.dumps(reply_packet).encode())
+        if packet['command'] == 'secure':
+            private = DiffieHellman()
+            public = private.gen_public_key()
+            reply = {
+                'username': 'SERVER',
+                'command': 'secure',
+                'key': public
+            }
+            self.transport.write(get_transportable_data(reply))
+            self.key = private.gen_shared_key(packet['key'])
 
-    def clear_cache(self):
-        for i in self.cache:
-            try:
-                self.factory.connections[i['destination']].transport.write(json.dumps(i).encode())
-            except builtins.KeyError:
-                pass
-            else:
-                self.cache.remove(i)
+        elif packet['command'] == 'login':
+            cipher = AES.new(self.key.encode(), AES.MODE_SIV)
+            encrypted = b64decode(packet['password'].encode())
+            tag = b64decode(packet['tag'].encode())
+            password = cipher.decrypt_and_verify(encrypted, tag)
+            if login(packet['username'], password):
+                print(f"{packet['username']} logged in.")
+                reply = {
+                    'username': 'SERVER',
+                    'command': 'login ok'
+                }
+                self.transport.write(get_transportable_data(reply))
+
+        elif packet['command'] == 'signup':
+            cipher = AES.new(self.key.encode(), AES.MODE_SIV)
+            encrypted = b64decode(packet['password'].encode())
+            tag = b64decode(packet['tag'].encode())
+            password = cipher.decrypt_and_verify(encrypted, tag)
+            salt = bcrypt.gensalt()
+            password = bcrypt.hashpw(password, salt)
+            if add_user(packet['username'], password, salt):
+                reply = {
+                    'username': 'SERVER',
+                    'command': 'signup ok'
+                }
+                self.transport.write(get_transportable_data(reply))
 
 
 class ServerFactory(Factory):

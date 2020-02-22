@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import bcrypt
 from peewee import *
 
 db = SqliteDatabase('D:/pc.db')
@@ -16,22 +17,28 @@ class User(Model):
 
 
 def add_user(username, pwd, salt):
+    print(username)
+    print(pwd)
     try:
         User.get(User.username == username)
     except User.DoesNotExist:
         new_user = User(username=username, password_hash=pwd, password_salt=salt, last_login=datetime.now())
         new_user.save()
+        return True
     else:
         return False
 
 
 def login(username, password):
+
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:
         print("notfound")
         return False
     else:
+        salt = get_salt_for_user(username)
+        password = bcrypt.hashpw(password, salt)
         encrypted = query.password_hash.encode()
         if password == encrypted:
             query.last_login = datetime.now()
@@ -58,4 +65,4 @@ def get_salt_for_user(username):
     except User.DoesNotExist:
         return False
     else:
-        return query.password_salt
+        return query.password_salt.encode()
