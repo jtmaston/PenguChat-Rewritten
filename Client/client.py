@@ -125,6 +125,7 @@ class ChatApp(App):
         wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
         self.root.ids.message_box = wid
 
+
 class Client(Protocol):
     def __init__(self):
         self.username = None

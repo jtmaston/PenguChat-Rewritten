@@ -188,40 +188,61 @@ ScreenManager:
 		BoxLayout:
 		    orientation: 'vertical'
 		    spacing: 0
+		    padding: 0
 		    BoxLayout:
-		        size_hint: 1, 1
+		        canvas.before:
+                    Color:
+                        rgba: 0.5, 0.5, 0.5, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+		        padding: 0
                 id: top_bar
                 height: 60
                 orientation: 'horizontal'
                 size_hint: (1, None)
                 spacing: 0
-                TextInput:
-                    id: message_content
-                    on_text_validate: app.send()
+                Button:
+                    text: 'Profile'
+                    size_hint_x: 0.2
+                Button:
+                    text: 'Settings'
+                    size_hint_x: 0.2
+                Button:
+                    text: 'Start a new chat!'
+
             BoxLayout:
+                padding: 0
                 spacing: 0
                 orientation: 'horizontal'
                 RecycleView:
+                    canvas.before:
+                        Color:
+                            rgba: 0.5, 0.5, 0.5, 1
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
                     id: friend_list
                     viewclass: 'Button'
                     RecycleBoxLayout:
+
                         size_hint_y: None
                         height: self.minimum_height
                         orientation: 'vertical'
+
                 BoxLayout:
-                    spacing: 0
+                    padding: 0
                     orientation: 'vertical'
 
                     ChatLabel:
                         id: message_area
                         text: 'hello'
                     BoxLayout:
-                        spacing: 0
+                        padding: 0
                         id: message_box
                         height: 90
                         orientation: 'horizontal'
                         size_hint: (1, None)
-
                         TextInput:
                             id: message_content
                             on_text_validate: app.send()
