@@ -42,6 +42,20 @@ def get_key(partner_name):
         return query.common_key
 
 
+def get_friends(username):
+    friend_list = list()
+    query = Messages.select(Messages.sender)
+    for i in query:
+        if i.sender not in friend_list and i.sender != username:
+            friend_list.append(i.destination)
+    query = Messages.select(Messages.destination)
+    for i in query:
+        if i.destination not in friend_list and i.destination != username:
+            friend_list.append(i.destination)
+    friend_list = [i for i in friend_list if i] # remove empty records
+    return friend_list
+
+
 try:
     db.create_tables([Auth, Messages])
 except OperationalError as t:
@@ -54,3 +68,5 @@ except OperationalError as t:
     except FileNotFoundError:
         with open(path + '\\messages.db', 'w+'):
             pass
+
+print(get_friends("Alexey"))
