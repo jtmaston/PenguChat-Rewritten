@@ -225,18 +225,28 @@ ScreenManager:
                     id: friend_list
                     viewclass: 'Button'
                     RecycleBoxLayout:
-
                         size_hint_y: None
                         height: self.minimum_height
                         orientation: 'vertical'
 
                 BoxLayout:
                     padding: 0
-                    orientation: 'vertical'
+                    orientation: 'horizontal'
 
-                    ChatLabel:
-                        id: message_area
-                        text: 'hello'
+                    RecycleView:
+                        canvas.before:
+                            Color:
+                                rgba: 1, 1, 1, 0.5
+                            Rectangle:
+                                pos: self.pos
+                                size: self.size
+
+                        viewclass: 'Label'
+                        RecycleBoxLayout:
+                            size_hint_y: None
+                            height: self.minimum_height
+                            orientation: 'vertical'
+
                     BoxLayout:
                         padding: 0
                         id: message_box
@@ -251,3 +261,46 @@ ScreenManager:
                             text: 'Send'
                             on_press: app.send()
                             size_hint: (0.3, 1)
+    LoginScreen:
+		name: 'error'
+		on_enter:
+		    app.secure()
+		BoxLayout:
+			orientation: 'vertical'
+			Label:
+			    size_hint_y: 0.2
+                canvas.before:
+                    Color:
+                        rgba: 1, 0, 0, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                text: "Not connected!"
+			GridLayout:
+				LoginLabel:
+					text: 'Username:'
+
+				TextInput:
+					id: loginUsr
+					text:'Alexey'
+					write_tab: False
+					multiline: False
+
+				LoginLabel:
+					text: 'Password'
+
+				TextInput:
+					id: loginPass
+					password: True
+					text:'DatBoi30'
+					write_tab: False
+					multiline: False
+					on_text_validate: app.send_login_data()
+			BlueButton:
+				color: 0, 0, 0, 1
+				text: 'Connect'
+				on_press: app.send_login_data()
+			BlueButton:
+				text: 'Sign up'
+				color: 0, 0, 0, 1
+				on_press: app.sign_up_redirect()

@@ -9,6 +9,8 @@ from kivy.config import Config
 from kivy.support import install_twisted_reactor
 from pyDHFixed import DiffieHellman
 
+from Client.DBHandler import get_friends
+
 install_twisted_reactor()
 
 from twisted.internet import reactor, task
@@ -22,7 +24,7 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'chat_room'
+        self.root.current = 'login'
         task.LoopingCall(self.poll_commands).start(0.5)
 
     def __init__(self):
@@ -63,7 +65,10 @@ class ChatApp(App):
 
         pwd = self.root.ids.loginPass.text
         self.username = self.root.ids.loginUsr.text
-        cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
+        try:
+            cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
+        except AttributeError:
+            exit(1)
         encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
         login_packet = {
             'command': 'login',
@@ -74,7 +79,7 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(login_packet).encode())
 
     def load_friends(self):
-        names = ['Mark', 'Lee', 'Charlie', 'Danny', 'Lewis', 'Dennis', 'Etc', 'Patrick']
+        names = get_friends(self.username)
         for i in names:
             self.root.ids.friend_list.data.append({'text': i, 'on_press': self.wrapper(i), 'size_hint': (1, None)})
 
@@ -91,6 +96,10 @@ class ChatApp(App):
                     self.root.current = 'chat_room'
                 elif command['command'] == 'signup ok':
                     self.root.current = 'chat_room'
+                elif command['command'] == '504':
+                    self.root.current = 'error'
+                elif command['command'] == '200':
+                    self.root.current = 'login'
 
     def secure(self):
         print("establishing secure channel")
@@ -132,6 +141,7 @@ class Client(Protocol):
         self.destination = None
 
     def connectionMade(self):
+        Commands.put({'command': "200"})
         print("Connected!", end="")
 
     def dataReceived(self, data):
@@ -165,6 +175,8 @@ class ClientFactory(Factory):
         print("Attempting to connect...")
 
     def clientConnectionFailed(self, connector, reason):
+        Commands.put({'command': "504"})
+        connector.connect()
         print("Conn failed.")
 
     def clientConnectionLost(self, connector, reason):

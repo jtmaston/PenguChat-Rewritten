@@ -68,5 +68,3 @@ except OperationalError as t:
     except FileNotFoundError:
         with open(path + '\\messages.db', 'w+'):
             pass
-
-print(get_friends("Alexey"))
