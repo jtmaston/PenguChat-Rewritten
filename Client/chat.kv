@@ -97,9 +97,6 @@ ScreenManager:
 
 	LoginScreen:
 		name: 'login'
-		on_enter:
-		    app.secure()
-
 		BoxLayout:
 			orientation: 'vertical'
 			GridLayout:
@@ -266,11 +263,10 @@ ScreenManager:
                             size_hint: (0.3, 1)
     LoginScreen:
 		name: 'error'
-		on_enter:
-		    app.secure()
 		BoxLayout:
 			orientation: 'vertical'
 			Label:
+				id: problem
 			    size_hint_y: 0.2
                 canvas.before:
                     Color:
@@ -303,7 +299,9 @@ ScreenManager:
 				color: 0, 0, 0, 1
 				text: 'Connect'
 				on_press: app.send_login_data()
+				disabled: True
 			BlueButton:
 				text: 'Sign up'
 				color: 0, 0, 0, 1
 				on_press: app.sign_up_redirect()
+				disabled: True

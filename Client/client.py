@@ -39,7 +39,7 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'chat_room'
+        self.root.current = 'login'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
@@ -74,13 +74,14 @@ class ChatApp(App):
             self.factory.client.transport.write(dumps(signup_packet).encode())
 
     def send_login_data(self):
-
         pwd = self.root.ids.loginPass.text
         self.username = self.root.ids.loginUsr.text
         try:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
         except AttributeError:
-            exit(1)
+            self.root.ids.problem.text = 'Not connected!'
+            self.root.current = 'error'
+            return 0
         encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
         login_packet = {
             'command': 'login',
@@ -91,7 +92,8 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(login_packet).encode())
 
     def send(self):
-        print(self.destination)
+        message_text = self.root.ids.message_content.text
+        print(message_text)
 
     def poll_commands(self):
         if not Commands.empty():
@@ -104,8 +106,10 @@ class ChatApp(App):
                 elif command['command'] == 'signup ok':
                     self.root.current = 'chat_room'
                 elif command['command'] == '504':
+                    self.root.ids.problem.text = "Not connected!"
                     self.root.current = 'error'
                 elif command['command'] == '200':
+                    self.secure()
                     self.root.current = 'login'
 
     def secure(self):
@@ -117,10 +121,7 @@ class ChatApp(App):
             'command': 'secure',
             'key': public
         }
-        try:
-            self.factory.client.transport.write(dumps(command_packet).encode())
-        except AttributeError:
-            task.deferLater(reactor, 5, self.secure)
+        self.factory.client.transport.write(dumps(command_packet).encode())
 
     def wrapper(self, name):
         def change_chat(parent=self):
@@ -147,10 +148,10 @@ class ChatApp(App):
             self.root.ids.friend_list.data.append({'text': i, 'on_press': self.wrapper(i), 'size_hint': (1, None)})
 
     def load_messages(self):
-        messages = ['This is a long ass text that should display ok but maybe not']
-        messages += [str(i) for i in range(1, 20)]
+        messages = ""
         for i in messages:
-            self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left'})
+            self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left', 'height': 50})
+        pass
 
 
 class Client(Protocol):
@@ -193,8 +194,8 @@ class ClientFactory(Factory):
         Logger.debug('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
-        # Commands.put({'command': "504"})
-        # connector.connect()
+        Commands.put({'command': "504"})
+        connector.connect()
         Logger.warning('Application: Connection failed!')
 
     def clientConnectionLost(self, connector, reason):
