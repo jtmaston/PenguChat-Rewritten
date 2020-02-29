@@ -84,18 +84,10 @@
     on_pre_enter: print("here")
 
 <MessageLabel@Label>
-	background_color: 1, 0, 0, 1
-	padding: 0, 0
-	spacing: 0
-    canvas.before:
-        Color:
-            rgba: root.background_color
-        Rectangle:
-            size: self.width, 50
-            pos: self.pos
-	text_size: self.width, 50
+	text_size: self.width, None
+	size_hint_y: None
 	valign: 'center'
-
+	height: self.texture_size[1]
 
 ScreenManager:
 	transition: RiseInTransition()
@@ -256,10 +248,7 @@ ScreenManager:
                             size_hint_y: None
                             height: self.minimum_height
                             orientation: 'vertical'
-
-
-
-
+                            row_default_height: 0
                     BoxLayout:
                         padding: 0
                         spacing: 0
