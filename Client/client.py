@@ -5,10 +5,9 @@ from os import getenv
 from queue import Queue
 
 from Crypto.Cipher import AES
-from kivy.config import Config
-Config.set('kivy', 'log_dir', getenv('APPDATA')+'\\PenguChat\\Logs')
-from kivy.app import App
 from kivy import Logger
+from kivy.app import App
+from kivy.config import Config
 from kivy.support import install_twisted_reactor
 from pyDHFixed import DiffieHellman
 
@@ -24,6 +23,15 @@ Commands = Queue()
 
 
 class ChatApp(App):
+    def get_application_config(self, defaultpath='%(appdir)s/%(appname)s.ini'):
+        return super(ChatApp, self).get_application_config(
+            getenv('APPDATA') + '\\PenguChat\\Config\\chat.ini')
+
+    def build_config(self, config):
+        config.setdefaults('kivy', {
+            'log_dir': getenv('APPDATA') + '\\PenguChat\\Logs',
+            'log_level': 'warning'
+        })
 
     def build(self):
         super(ChatApp, self).build()
