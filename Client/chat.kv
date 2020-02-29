@@ -83,12 +83,18 @@
 <LoadingScreen@Screen>
     on_pre_enter: print("here")
 
-<FriendList@RecycleView>
-    viewclass: 'Button'
-    RecycleBoxLayout:
-        size_hint_y: None
-        height: self.minimum_height
-        orientation: 'vertical'
+<MessageLabel@Label>
+	background_color: 1, 0, 0, 1
+	padding: 0, 0
+	spacing: 0
+    canvas.before:
+        Color:
+            rgba: root.background_color
+        Rectangle:
+            size: self.width, 50
+            pos: self.pos
+	text_size: self.width, 50
+	valign: 'center'
 
 
 ScreenManager:
@@ -178,12 +184,8 @@ ScreenManager:
 		on_pre_enter:
 			Window.size = (1080, 720)
 			app.load_friends()
+			app.load_messages()
 			app.hide_message_box()
-		canvas:
-			Rectangle:
-				source:"assets/large-wallpaper.jpg"
-				pos: self.pos
-				size: self.size
 		name: 'chat_room'
 		BoxLayout:
 		    orientation: 'vertical'
@@ -231,24 +233,36 @@ ScreenManager:
 
                 BoxLayout:
                     padding: 0
-                    orientation: 'horizontal'
-
+                    orientation: 'vertical'
+                    canvas.before:
+                        Color:
+                            rgba: 1, 1, 1, 0.5
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
                     RecycleView:
-                        canvas.before:
-                            Color:
-                                rgba: 1, 1, 1, 0.5
-                            Rectangle:
-                                pos: self.pos
-                                size: self.size
-
-                        viewclass: 'Label'
+                        size_hint_x: 1
+						id: messages
+						canvas.before:
+							Color:
+								rgba: 1, 1, 1, 1
+							Rectangle:
+								source:"assets/large-wallpaper.jpg"
+								pos: self.pos
+								size: self.size
+						viewclass: 'MessageLabel'
                         RecycleBoxLayout:
+                            default_size_hint: 1, None
                             size_hint_y: None
                             height: self.minimum_height
                             orientation: 'vertical'
 
+
+
+
                     BoxLayout:
                         padding: 0
+                        spacing: 0
                         id: message_box
                         height: 90
                         orientation: 'horizontal'
