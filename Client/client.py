@@ -1,10 +1,14 @@
-# os.environ["KIVY_NO_CONSOLELOG"] = "1"
 from base64 import b64encode
 from json import dumps, loads
-from os import getenv
+from os import getenv, environ
+
+environ['KIVY_NO_ENV_CONFIG'] = '1'
+environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
+environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
 from queue import Queue
 
 from Crypto.Cipher import AES
+
 from kivy import Logger
 from kivy.app import App
 from kivy.config import Config
@@ -44,7 +48,6 @@ class ChatApp(App):
         super(ChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
         Config.set('graphics', 'height', '700')
-
         self.username = None
         self.destination = None
 
@@ -62,7 +65,6 @@ class ChatApp(App):
         if pwd == pwd_r:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
             encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
-
             signup_packet = {
                 'command': 'signup',
                 'password': b64encode(encrypted).decode(),
@@ -188,7 +190,7 @@ class ClientFactory(Factory):
         return c
 
     def startedConnecting(self, connector):
-        Logger.info('Application: Attempting to connect...')
+        Logger.debug('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
         # Commands.put({'command': "504"})
