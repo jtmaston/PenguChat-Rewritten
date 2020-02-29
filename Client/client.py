@@ -39,7 +39,7 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'login'
+        self.root.current = 'loading_screen'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
@@ -50,6 +50,9 @@ class ChatApp(App):
         Config.set('graphics', 'height', '700')
         self.username = None
         self.destination = None
+        self.private = None
+        self.factory = None
+        self.server_key = None
 
     def on_request_close(self, timestamp):
         print(f"Closed at {timestamp}")
@@ -113,7 +116,6 @@ class ChatApp(App):
                     self.root.current = 'login'
 
     def secure(self):
-        print("establishing secure channel")
         self.private = DiffieHellman()
         public = self.private.gen_public_key()
 
@@ -161,7 +163,6 @@ class Client(Protocol):
 
     def connectionMade(self):
         Commands.put({'command': "200"})
-        print("Connected!", end="")
 
     def dataReceived(self, data):
         print(data)
@@ -191,7 +192,7 @@ class ClientFactory(Factory):
         return c
 
     def startedConnecting(self, connector):
-        Logger.debug('Application: Attempting to connect...')
+        Logger.info('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
         Commands.put({'command': "504"})

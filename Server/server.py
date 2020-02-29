@@ -25,7 +25,6 @@ class Server(Protocol):
         pass
 
     def dataReceived(self, data):
-
         packet = json.loads(data)
         print(data)
         if packet['command'] == 'secure':

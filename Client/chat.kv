@@ -92,8 +92,12 @@
 ScreenManager:
 	transition: RiseInTransition()
 
-	LoadingScreen:
+	LoginScreen:
 	    name:'loading_screen'
+	    Image:
+	        size: self.size
+	        pos: self.pos
+	        source: "Assets/Loading.gif"
 
 	LoginScreen:
 		name: 'login'
