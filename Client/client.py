@@ -1,11 +1,14 @@
 # os.environ["KIVY_NO_CONSOLELOG"] = "1"
 from base64 import b64encode
 from json import dumps, loads
+from os import getenv
 from queue import Queue
 
 from Crypto.Cipher import AES
-from kivy.app import App
 from kivy.config import Config
+Config.set('kivy', 'log_dir', getenv('APPDATA')+'\\PenguChat\\Logs')
+from kivy.app import App
+from kivy import Logger
 from kivy.support import install_twisted_reactor
 from pyDHFixed import DiffieHellman
 
@@ -24,16 +27,15 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'login'
+        self.root.current = 'chat_room'
         task.LoopingCall(self.poll_commands).start(0.5)
+        self.factory = ClientFactory()
+        reactor.connectTCP("localhost", 8123, self.factory)
 
     def __init__(self):
         super(ChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
         Config.set('graphics', 'height', '700')
-
-        self.factory = ClientFactory()
-        reactor.connectTCP("localhost", 8123, self.factory)
 
         self.username = None
         self.destination = None
@@ -77,11 +79,6 @@ class ChatApp(App):
             'username': self.username
         }
         self.factory.client.transport.write(dumps(login_packet).encode())
-
-    def load_friends(self):
-        names = get_friends(self.username)
-        for i in names:
-            self.root.ids.friend_list.data.append({'text': i, 'on_press': self.wrapper(i), 'size_hint': (1, None)})
 
     def send(self):
         print(self.destination)
@@ -134,6 +131,17 @@ class ChatApp(App):
         wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
         self.root.ids.message_box = wid
 
+    def load_friends(self):
+        names = get_friends(self.username)
+        for i in names:
+            self.root.ids.friend_list.data.append({'text': i, 'on_press': self.wrapper(i), 'size_hint': (1, None)})
+
+    def load_messages(self):
+        messages = ['This is a long ass text that should display ok but maybe not']
+        messages += [str(i) for i in range(1, 20)]
+        for i in messages:
+            self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left'})
+
 
 class Client(Protocol):
     def __init__(self):
@@ -172,15 +180,15 @@ class ClientFactory(Factory):
         return c
 
     def startedConnecting(self, connector):
-        print("Attempting to connect...")
+        Logger.info('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
-        Commands.put({'command': "504"})
-        connector.connect()
-        print("Conn failed.")
+        # Commands.put({'command': "504"})
+        # connector.connect()
+        Logger.warning('Application: Connection failed!')
 
     def clientConnectionLost(self, connector, reason):
-        print("Conn lost. Attempting a reconnect.")
+        Logger.warning('Application: Connection lost!')
         connector.connect()
 
 
