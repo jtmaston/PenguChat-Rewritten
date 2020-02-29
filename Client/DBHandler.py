@@ -52,7 +52,7 @@ def get_friends(username):
     for i in query:
         if i.destination not in friend_list and i.destination != username:
             friend_list.append(i.destination)
-    friend_list = [i for i in friend_list if i] # remove empty records
+    friend_list = [i for i in friend_list if i]  # remove empty records
     return friend_list
 
 
