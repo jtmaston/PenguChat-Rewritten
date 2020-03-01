@@ -56,6 +56,12 @@ def get_friends(username):
     return friend_list
 
 
+def save_message(message):
+    Messages(sender=message['sender'], destination=message['destination'],
+             message_text=message['message_text'], timestamp=datetime.strptime(message['timestamp'], "%m/%d/%Y, "
+                                                                                                     "%H:%M:%S")).save()
+
+
 try:
     db.create_tables([Auth, Messages])
 except OperationalError as t:

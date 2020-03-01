@@ -17,8 +17,6 @@ class User(Model):
 
 
 def add_user(username, pwd, salt):
-    print(username)
-    print(pwd)
     try:
         User.get(User.username == username)
     except User.DoesNotExist:

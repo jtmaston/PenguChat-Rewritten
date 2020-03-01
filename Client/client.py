@@ -1,21 +1,28 @@
 from base64 import b64encode
+from datetime import datetime
 from json import dumps, loads
 from os import getenv, environ
+
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
 
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
+
 from queue import Queue
 
 from Crypto.Cipher import AES
 
+from kivy.uix.popup import Popup
 from kivy import Logger
 from kivy.app import App
 from kivy.config import Config
 from kivy.support import install_twisted_reactor
 from pyDHFixed import DiffieHellman
 
-from Client.DBHandler import get_friends
+from Client.DBHandler import get_friends, save_message, get_key, add_key
 
 install_twisted_reactor()
 
@@ -27,19 +34,9 @@ Commands = Queue()
 
 
 class ChatApp(App):
-    def get_application_config(self, defaultpath='%(appdir)s/%(appname)s.ini'):
-        return super(ChatApp, self).get_application_config(
-            getenv('APPDATA') + '\\PenguChat\\Config\\chat.ini')
-
-    def build_config(self, config):
-        config.setdefaults('kivy', {
-            'log_dir': getenv('APPDATA') + '\\PenguChat\\Logs',
-            'log_level': 'warning'
-        })
-
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'loading_screen'
+        self.root.current = 'chat_room'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
@@ -72,7 +69,7 @@ class ChatApp(App):
                 'command': 'signup',
                 'password': b64encode(encrypted).decode(),
                 'tag': b64encode(tag).decode(),
-                'username': self.username
+                'sender': self.username
             }
             self.factory.client.transport.write(dumps(signup_packet).encode())
 
@@ -90,13 +87,30 @@ class ChatApp(App):
             'command': 'login',
             'password': b64encode(encrypted).decode(),
             'tag': b64encode(tag).decode(),
-            'username': self.username
+            'sender': self.username
         }
         self.factory.client.transport.write(dumps(login_packet).encode())
 
     def send(self):
         message_text = self.root.ids.message_content.text
-        print(message_text)
+        self.root.ids.message_content.text = ""
+        packet = {
+            'sender': self.username,
+            'destination': self.destination,
+            'command': 'message',
+            'message_text': message_text,
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        }
+        self.factory.client.transport.write(dumps(packet).encode())
+
+    def handshake(self):
+        if not get_key(self.destination):
+            public = self.private.gen_public_key()
+            command_packet = {
+                'command': 'secure_friend',
+                'key': public
+            }
+            self.factory.client.transport.write(dumps(command_packet).encode())
 
     def poll_commands(self):
         if not Commands.empty():
@@ -114,11 +128,12 @@ class ChatApp(App):
                 elif command['command'] == '200':
                     self.secure()
                     self.root.current = 'login'
+                elif command['command'] == 'friend_key':
+                    add_key(command['friend'], self.private.gen_shared_key(command['content']))
 
     def secure(self):
         self.private = DiffieHellman()
         public = self.private.gen_public_key()
-
         command_packet = {
             'command': 'secure',
             'key': public
@@ -153,7 +168,15 @@ class ChatApp(App):
         messages = ""
         for i in messages:
             self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left', 'height': 50})
-        pass
+
+    def new_chat(self):
+        bar = BoxLayout(orientation='horizontal')
+        bar.add_widget(TextInput(size_hint_x=0.8))
+        bar.add_widget(Button(text='Chat!', size_hint_x=0.2))
+        popup = Popup(title='Test popup',
+                      content=bar,
+                      size_hint=(None, None), size=(800, 400))
+        popup.open()
 
 
 class Client(Protocol):
@@ -165,10 +188,8 @@ class Client(Protocol):
         Commands.put({'command': "200"})
 
     def dataReceived(self, data):
-        print(data)
         packet = loads(data)
-
-        if packet['username'] == 'SERVER':
+        if packet['sender'] == 'SERVER':
             if packet['command'] == 'secure':
                 Commands.put({'command': 'server_key', 'content': packet['key']})
             elif packet['command'] == 'login ok':
@@ -177,6 +198,11 @@ class Client(Protocol):
                 Commands.put({'command': 'signup ok'})
             elif packet['command'] == 'not found!':
                 Commands.put({'command': 'not found!'})
+        else:
+            if packet['command'] == 'message':
+                save_message(packet)
+            elif packet['command'] == 'secure_friend':
+                Commands.put({'command': 'friend_key', 'friend': packet['sender'], 'content': packet['key']})
 
     def connectionLost(self, reason=connectionDone):
         print(reason.value)
@@ -195,8 +221,8 @@ class ClientFactory(Factory):
         Logger.info('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
-        Commands.put({'command': "504"})
-        connector.connect()
+        # Commands.put({'command': "504"})
+        # connector.connect()
         Logger.warning('Application: Connection failed!')
 
     def clientConnectionLost(self, connector, reason):

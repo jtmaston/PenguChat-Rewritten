@@ -12,6 +12,7 @@
 	spacing: 10
 	row_default_height: 90
 	row_force_default: True
+
 <Label>:
 	font_size: 25
 
@@ -67,21 +68,12 @@
 	valign: 'middle'
 	size_hint: (0.4, 1)
 
-<CircularButton@Button>:
-	canvas:
-		Ellipse:
-			pos: self.pos
-			size: self.size
-
 <LoginScreen@Screen>:
 	canvas:
 		Rectangle:
 			source:"assets/wallpaper.jpg"
 			pos: self.pos
 			size: self.size
-
-<LoadingScreen@Screen>
-    on_pre_enter: print("here")
 
 <MessageLabel@Label>
 	text_size: self.width, None
@@ -109,7 +101,6 @@ ScreenManager:
 
 				TextInput:
 					id: loginUsr
-					text:'Alexey'
 					write_tab: False
 					multiline: False
 
@@ -119,7 +110,6 @@ ScreenManager:
 				TextInput:
 					id: loginPass
 					password: True
-					text:'DatBoi30'
 					write_tab: False
 					multiline: False
 					on_text_validate: app.send_login_data()
@@ -142,7 +132,6 @@ ScreenManager:
 
 				TextInput:
 					id: username
-					text: ''
 					write_tab: False
 					multiline: False
 
@@ -205,6 +194,7 @@ ScreenManager:
                     size_hint_x: 0.2
                 Button:
                     text: 'Start a new chat!'
+                    on_press: app.new_chat()
 
             BoxLayout:
                 padding: 0
@@ -260,7 +250,6 @@ ScreenManager:
                         TextInput:
                             id: message_content
                             on_text_validate: app.send()
-
                         Button:
                             text: 'Send'
                             on_press: app.send()
@@ -282,30 +271,18 @@ ScreenManager:
 			GridLayout:
 				LoginLabel:
 					text: 'Username:'
-
 				TextInput:
-					id: loginUsr
-					text:'Alexey'
-					write_tab: False
-					multiline: False
-
+					disabled: True
 				LoginLabel:
 					text: 'Password'
-
 				TextInput:
-					id: loginPass
-					password: True
-					text:'DatBoi30'
-					write_tab: False
-					multiline: False
-					on_text_validate: app.send_login_data()
+
+					disabled: True
 			BlueButton:
 				color: 0, 0, 0, 1
 				text: 'Connect'
-				on_press: app.send_login_data()
 				disabled: True
 			BlueButton:
 				text: 'Sign up'
 				color: 0, 0, 0, 1
-				on_press: app.sign_up_redirect()
 				disabled: True

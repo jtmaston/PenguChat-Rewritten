@@ -31,7 +31,7 @@ class Server(Protocol):
             private = DiffieHellman()
             public = private.gen_public_key()
             reply = {
-                'username': 'SERVER',
+                'sender': 'SERVER',
                 'command': 'secure',
                 'key': public
             }
@@ -43,13 +43,15 @@ class Server(Protocol):
             encrypted = b64decode(packet['password'].encode())
             tag = b64decode(packet['tag'].encode())
             password = cipher.decrypt_and_verify(encrypted, tag)
-            if login(packet['username'], password):
-                print(f"{packet['username']} logged in.")
+            if login(packet['sender'], password):
+                print(f"{packet['sender']} logged in.")
+                self.factory.connections[packet['sender']] = self
                 reply = {
-                    'username': 'SERVER',
+                    'sender': 'SERVER',
                     'command': 'login ok'
                 }
                 self.transport.write(get_transportable_data(reply))
+                print(self.factory.connections)
 
         elif packet['command'] == 'signup':
             cipher = AES.new(self.key.encode(), AES.MODE_SIV)
@@ -58,12 +60,16 @@ class Server(Protocol):
             password = cipher.decrypt_and_verify(encrypted, tag)
             salt = bcrypt.gensalt()
             password = bcrypt.hashpw(password, salt)
-            if add_user(packet['username'], password, salt):
+            if add_user(packet['sender'], password, salt):
                 reply = {
-                    'username': 'SERVER',
+                    'sender': 'SERVER',
                     'command': 'signup ok'
                 }
                 self.transport.write(get_transportable_data(reply))
+
+        elif packet['command'] == 'message':
+            print(packet)
+            self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
 
 
 class ServerFactory(Factory):
