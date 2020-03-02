@@ -16,6 +16,17 @@ class User(Model):
         database = db
 
 
+class MessageCache(Model):
+    sender = CharField(100)
+    destination = CharField(100)
+    message_text = TextField()
+    timestamp = DateTimeField()
+    is_key = BooleanField(default=False)
+
+    class Meta:
+        database = db
+
+
 def add_user(username, pwd, salt):
     try:
         User.get(User.username == username)
@@ -28,7 +39,6 @@ def add_user(username, pwd, salt):
 
 
 def login(username, password):
-
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:

@@ -33,7 +33,7 @@ class Server(Protocol):
             reply = {
                 'sender': 'SERVER',
                 'command': 'secure',
-                'key': public
+                'content': public
             }
             self.transport.write(get_transportable_data(reply))
             self.key = private.gen_shared_key(packet['key'])
@@ -51,7 +51,12 @@ class Server(Protocol):
                     'command': 'login ok'
                 }
                 self.transport.write(get_transportable_data(reply))
-                print(self.factory.connections)
+            else:
+                reply = {
+                    'sender': 'SERVER',
+                    'command': 'unauthorized'
+                }
+                self.transport.write(get_transportable_data(reply))
 
         elif packet['command'] == 'signup':
             cipher = AES.new(self.key.encode(), AES.MODE_SIV)
@@ -66,10 +71,21 @@ class Server(Protocol):
                     'command': 'signup ok'
                 }
                 self.transport.write(get_transportable_data(reply))
+            else:
+                reply = {
+                    'sender': 'SERVER',
+                    'command': 'user exists'
+                }
+                self.transport.write(get_transportable_data(reply))
 
         elif packet['command'] == 'message':
-            print(packet)
             self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
+
+        elif packet['command'] == 'secure_friend':
+            try:
+                self.factory.connections[packet['destination']]
+            except KeyError:
+                pass  # placeholder, db ops come here
 
 
 class ServerFactory(Factory):

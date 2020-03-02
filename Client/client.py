@@ -1,15 +1,16 @@
-from base64 import b64encode
-from datetime import datetime
-from json import dumps, loads
 from os import getenv, environ
-
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
 
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
+
+from base64 import b64encode
+from datetime import datetime
+from json import dumps, loads
+
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
 
 from queue import Queue
 
@@ -36,7 +37,7 @@ Commands = Queue()
 class ChatApp(App):
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'chat_room'
+        self.root.current = 'loading_screen'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
@@ -108,7 +109,7 @@ class ChatApp(App):
             public = self.private.gen_public_key()
             command_packet = {
                 'command': 'secure_friend',
-                'key': public
+                'content': public
             }
             self.factory.client.transport.write(dumps(command_packet).encode())
 
@@ -116,7 +117,7 @@ class ChatApp(App):
         if not Commands.empty():
             command = Commands.get_nowait()
             if command:
-                if command['command'] == 'server_key':
+                if command['command'] == 'secure':
                     self.server_key = self.private.gen_shared_key(command['content'])
                 elif command['command'] == 'login ok':
                     self.root.current = 'chat_room'
@@ -171,7 +172,7 @@ class ChatApp(App):
 
     def new_chat(self):
         bar = BoxLayout(orientation='horizontal')
-        bar.add_widget(TextInput(size_hint_x=0.8))
+        bar.add_widget(TextInput(size_hint_x=0.8, id='new_friend'))
         bar.add_widget(Button(text='Chat!', size_hint_x=0.2))
         popup = Popup(title='Test popup',
                       content=bar,
@@ -188,16 +189,10 @@ class Client(Protocol):
         Commands.put({'command': "200"})
 
     def dataReceived(self, data):
+        print(data)
         packet = loads(data)
         if packet['sender'] == 'SERVER':
-            if packet['command'] == 'secure':
-                Commands.put({'command': 'server_key', 'content': packet['key']})
-            elif packet['command'] == 'login ok':
-                Commands.put({'command': 'login ok'})
-            elif packet['command'] == 'signup ok':
-                Commands.put({'command': 'signup ok'})
-            elif packet['command'] == 'not found!':
-                Commands.put({'command': 'not found!'})
+            Commands.put(packet)
         else:
             if packet['command'] == 'message':
                 save_message(packet)
