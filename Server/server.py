@@ -16,13 +16,14 @@ def get_transportable_data(packet):
 class Server(Protocol):
     def __init__(self, factory):
         self.factory = factory
-        self.cache = []
+        self.endpoint_username = None
 
     def connectionMade(self):
         pass
 
     def connectionLost(self, reason=connectionDone):
-        pass
+        del self.factory.connections[self.endpoint_username]
+        self.endpoint_username = None
 
     def dataReceived(self, data):
         packet = json.loads(data)
@@ -46,6 +47,11 @@ class Server(Protocol):
             if login(packet['sender'], password):
                 print(f"{packet['sender']} logged in.")
                 self.factory.connections[packet['sender']] = self
+                self.endpoint_username = packet['sender']
+                cached = get_cached_messages_for_user(packet['sender'])
+                if cached:
+                    for i in cached:
+                        self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
                 reply = {
                     'sender': 'SERVER',
                     'command': 'login ok'
@@ -80,8 +86,8 @@ class Server(Protocol):
 
         elif packet['command'] == 'message' or packet['command'] == 'secure_friend':
             try:
-                self.factory.connections[packet['destination']].write(get_transportable_data(packet))
-            except AttributeError:
+                self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
+            except KeyError:
                 add_message_to_cache(packet)
                 reply = {
                     'sender': 'SERVER',
@@ -101,6 +107,5 @@ class ServerFactory(Factory):
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
-    create()
     print("Server started.")
     reactor.run()

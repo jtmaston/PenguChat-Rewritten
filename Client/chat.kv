@@ -69,6 +69,8 @@
 	size_hint: (0.4, 1)
 
 <LoginScreen@Screen>:
+    on_pre_enter:
+        Window.size = (500, 700)
 	canvas:
 		Rectangle:
 			source:"assets/wallpaper.jpg"
@@ -228,7 +230,7 @@ ScreenManager:
                 size_hint: (1, None)
                 spacing: 0
                 Button:
-                    text: 'New chat requests'
+                    text: 'Requests'
                     id: new_convo_count
                     size_hint_x: 0.2
                 Button:

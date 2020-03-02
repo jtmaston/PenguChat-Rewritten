@@ -54,10 +54,6 @@ class ChatApp(App):
         self.failed_login = None
         self.failed_signup = None
 
-    def on_request_close(self, timestamp):
-        print(f"Closed at {timestamp}")
-        self.stop()
-
     def sign_up_redirect(self):
         self.root.current = 'signup'
 
@@ -106,7 +102,7 @@ class ChatApp(App):
             'sender': self.username,
             'destination': self.destination,
             'command': 'message',
-            'message_text': message_text,
+            'content': message_text,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
         self.factory.client.transport.write(dumps(packet).encode())
@@ -131,7 +127,6 @@ class ChatApp(App):
                 elif command['command'] == 'signup ok':
                     self.root.current = 'chat_room'
                 elif command['command'] == '504':
-                    self.root.ids.problem.text = "Not connected!"
                     self.root.current = 'not_connected_screen'
                 elif command['command'] == '200':
                     self.secure()
@@ -206,14 +201,17 @@ class Client(Protocol):
 
     def dataReceived(self, data):
         print(data)
-        packet = loads(data)
-        if packet['sender'] == 'SERVER':
-            Commands.put(packet)
-        else:
-            if packet['command'] == 'message':
-                save_message(packet)
-            elif packet['command'] == 'secure_friend':
-                Commands.put({'command': 'friend_key', 'friend': packet['sender'], 'content': packet['key']})
+        data = data.decode().split('}')
+        for i in data:
+            if i:
+                packet = loads((i + '}').encode())
+                if packet['sender'] == 'SERVER':
+                    Commands.put(packet)
+                else:
+                    if packet['command'] == 'message':
+                        save_message(packet)
+                    elif packet['command'] == 'secure_friend':
+                        Commands.put({'command': 'friend_key', 'friend': packet['sender'], 'content': packet['key']})
 
     def connectionLost(self, reason=connectionDone):
         print(reason.value)

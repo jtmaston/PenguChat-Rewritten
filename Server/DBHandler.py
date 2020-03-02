@@ -38,6 +38,16 @@ def add_message_to_cache(packet):
     ).save()
 
 
+def get_cached_messages_for_user(username):
+    query = MessageCache.select().where(MessageCache.destination == username)
+    messages = []
+    for i in query:
+        messages.append(i.__data__)
+        i.delete_instance()
+    db.commit()
+    return messages
+
+
 def add_user(username, pwd, salt):
     try:
         User.get(User.username == username)
@@ -72,10 +82,6 @@ def delete_user(username, password):
         User.delete().where(User.username == username).execute()
         return True
     return False
-
-
-def create():
-    User.create_table()
 
 
 def get_salt_for_user(username):

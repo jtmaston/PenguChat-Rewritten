@@ -58,8 +58,8 @@ def get_friends(username):
 
 def save_message(message):
     Messages(sender=message['sender'], destination=message['destination'],
-             message_text=message['message_text'], timestamp=datetime.strptime(message['timestamp'], "%m/%d/%Y, "
-                                                                                                     "%H:%M:%S")).save()
+             message_text=message['content'], timestamp=datetime.strptime(message['timestamp'], "%m/%d/%Y, "
+                                                                                                "%H:%M:%S")).save()
 
 
 try:
