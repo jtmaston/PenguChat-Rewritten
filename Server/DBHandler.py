@@ -19,12 +19,23 @@ class User(Model):
 class MessageCache(Model):
     sender = CharField(100)
     destination = CharField(100)
-    message_text = TextField()
+    command = CharField(100)
+    content = TextField()
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
 
     class Meta:
         database = db
+
+
+def add_message_to_cache(packet):
+    MessageCache(
+        sender=packet['sender'],
+        destination=packet['destination'],
+        content=packet['content'],
+        timestamp=packet['timestamp'],
+        command=packet['command']
+    ).save()
 
 
 def add_user(username, pwd, salt):

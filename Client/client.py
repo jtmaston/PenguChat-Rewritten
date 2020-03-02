@@ -51,6 +51,8 @@ class ChatApp(App):
         self.private = None
         self.factory = None
         self.server_key = None
+        self.failed_login = None
+        self.failed_signup = None
 
     def on_request_close(self, timestamp):
         print(f"Closed at {timestamp}")
@@ -75,13 +77,17 @@ class ChatApp(App):
             self.factory.client.transport.write(dumps(signup_packet).encode())
 
     def send_login_data(self):
-        pwd = self.root.ids.loginPass.text
-        self.username = self.root.ids.loginUsr.text
+        if not self.failed_login:
+            pwd = self.root.ids.loginPass.text
+            self.username = self.root.ids.loginUsr.text
+        else:
+            pwd = self.root.ids.loginPass_failed.text
+            self.username = self.root.ids.loginUsr_failed.text
         try:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
         except AttributeError:
             self.root.ids.problem.text = 'Not connected!'
-            self.root.current = 'error'
+            self.root.current = 'not_connected_text'
             return 0
         encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
         login_packet = {
@@ -90,6 +96,7 @@ class ChatApp(App):
             'tag': b64encode(tag).decode(),
             'sender': self.username
         }
+        self.root.current = 'loading_screen'
         self.factory.client.transport.write(dumps(login_packet).encode())
 
     def send(self):
@@ -125,12 +132,21 @@ class ChatApp(App):
                     self.root.current = 'chat_room'
                 elif command['command'] == '504':
                     self.root.ids.problem.text = "Not connected!"
-                    self.root.current = 'error'
+                    self.root.current = 'not_connected_screen'
                 elif command['command'] == '200':
                     self.secure()
                     self.root.current = 'login'
                 elif command['command'] == 'friend_key':
                     add_key(command['friend'], self.private.gen_shared_key(command['content']))
+                elif command['command'] == 'user_exists':
+                    self.root.ids.problem = 'User already exists!'
+                    self.root.current = 'signup_fail'
+                    self.failed_signup = True
+                elif command['command'] == 'unauthorized':
+                    self.root.current = 'login_failed'
+                    self.root.ids.loginPass_failed.text = ""
+                    self.root.ids.loginUsr_failed.text = ""
+                    self.failed_login = True
 
     def secure(self):
         self.private = DiffieHellman()
@@ -216,8 +232,8 @@ class ClientFactory(Factory):
         Logger.info('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
-        # Commands.put({'command': "504"})
-        # connector.connect()
+        Commands.put({'command': "504"})
+        connector.connect()
         Logger.warning('Application: Connection failed!')
 
     def clientConnectionLost(self, connector, reason):

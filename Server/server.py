@@ -78,14 +78,16 @@ class Server(Protocol):
                 }
                 self.transport.write(get_transportable_data(reply))
 
-        elif packet['command'] == 'message':
-            self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
-
-        elif packet['command'] == 'secure_friend':
+        elif packet['command'] == 'message' or packet['command'] == 'secure_friend':
             try:
-                self.factory.connections[packet['destination']]
-            except KeyError:
-                pass  # placeholder, db ops come here
+                self.factory.connections[packet['destination']].write(get_transportable_data(packet))
+            except AttributeError:
+                add_message_to_cache(packet)
+                reply = {
+                    'sender': 'SERVER',
+                    'command': 'processed ok'
+                }
+                self.transport.write(get_transportable_data(reply))
 
 
 class ServerFactory(Factory):
