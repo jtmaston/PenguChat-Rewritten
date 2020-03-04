@@ -16,13 +16,14 @@ def get_transportable_data(packet):
 class Server(Protocol):
     def __init__(self, factory):
         self.factory = factory
-        self.cache = []
+        self.endpoint_username = None
 
     def connectionMade(self):
         pass
 
     def connectionLost(self, reason=connectionDone):
-        pass
+        del self.factory.connections[self.endpoint_username]
+        self.endpoint_username = None
 
     def dataReceived(self, data):
         packet = json.loads(data)
@@ -31,9 +32,9 @@ class Server(Protocol):
             private = DiffieHellman()
             public = private.gen_public_key()
             reply = {
-                'username': 'SERVER',
+                'sender': 'SERVER',
                 'command': 'secure',
-                'key': public
+                'content': public
             }
             self.transport.write(get_transportable_data(reply))
             self.key = private.gen_shared_key(packet['key'])
@@ -43,11 +44,23 @@ class Server(Protocol):
             encrypted = b64decode(packet['password'].encode())
             tag = b64decode(packet['tag'].encode())
             password = cipher.decrypt_and_verify(encrypted, tag)
-            if login(packet['username'], password):
-                print(f"{packet['username']} logged in.")
+            if login(packet['sender'], password):
+                print(f"{packet['sender']} logged in.")
+                self.factory.connections[packet['sender']] = self
+                self.endpoint_username = packet['sender']
+                cached = get_cached_messages_for_user(packet['sender'])
+                if cached:
+                    for i in cached:
+                        self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
                 reply = {
-                    'username': 'SERVER',
+                    'sender': 'SERVER',
                     'command': 'login ok'
+                }
+                self.transport.write(get_transportable_data(reply))
+            else:
+                reply = {
+                    'sender': 'SERVER',
+                    'command': 'unauthorized'
                 }
                 self.transport.write(get_transportable_data(reply))
 
@@ -58,10 +71,27 @@ class Server(Protocol):
             password = cipher.decrypt_and_verify(encrypted, tag)
             salt = bcrypt.gensalt()
             password = bcrypt.hashpw(password, salt)
-            if add_user(packet['username'], password, salt):
+            if add_user(packet['sender'], password, salt):
                 reply = {
-                    'username': 'SERVER',
+                    'sender': 'SERVER',
                     'command': 'signup ok'
+                }
+                self.transport.write(get_transportable_data(reply))
+            else:
+                reply = {
+                    'sender': 'SERVER',
+                    'command': 'user exists'
+                }
+                self.transport.write(get_transportable_data(reply))
+
+        elif packet['command'] == 'message' or packet['command'] == 'secure_friend':
+            try:
+                self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
+            except KeyError:
+                add_message_to_cache(packet)
+                reply = {
+                    'sender': 'SERVER',
+                    'command': 'processed ok'
                 }
                 self.transport.write(get_transportable_data(reply))
 
@@ -77,6 +107,5 @@ class ServerFactory(Factory):
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
-    create()
     print("Server started.")
     reactor.run()

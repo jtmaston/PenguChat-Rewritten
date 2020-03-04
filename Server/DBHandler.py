@@ -16,9 +16,39 @@ class User(Model):
         database = db
 
 
+class MessageCache(Model):
+    sender = CharField(100)
+    destination = CharField(100)
+    command = CharField(100)
+    content = TextField()
+    timestamp = DateTimeField()
+    is_key = BooleanField(default=False)
+
+    class Meta:
+        database = db
+
+
+def add_message_to_cache(packet):
+    MessageCache(
+        sender=packet['sender'],
+        destination=packet['destination'],
+        content=packet['content'],
+        timestamp=packet['timestamp'],
+        command=packet['command']
+    ).save()
+
+
+def get_cached_messages_for_user(username):
+    query = MessageCache.select().where(MessageCache.destination == username)
+    messages = []
+    for i in query:
+        messages.append(i.__data__)
+        i.delete_instance()
+    db.commit()
+    return messages
+
+
 def add_user(username, pwd, salt):
-    print(username)
-    print(pwd)
     try:
         User.get(User.username == username)
     except User.DoesNotExist:
@@ -30,7 +60,6 @@ def add_user(username, pwd, salt):
 
 
 def login(username, password):
-
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:
@@ -53,10 +82,6 @@ def delete_user(username, password):
         User.delete().where(User.username == username).execute()
         return True
     return False
-
-
-def create():
-    User.create_table()
 
 
 def get_salt_for_user(username):
