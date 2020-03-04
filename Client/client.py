@@ -5,11 +5,9 @@ environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
 
 from base64 import b64encode
-from datetime import datetime
 from json import dumps, loads
 
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 
 from queue import Queue
@@ -23,7 +21,7 @@ from kivy.config import Config
 from kivy.support import install_twisted_reactor
 from pyDHFixed import DiffieHellman
 
-from Client.DBHandler import get_friends, save_message, get_key, add_key
+from Client.DBHandler import *
 
 install_twisted_reactor()
 
@@ -58,15 +56,6 @@ class ChatApp(App):
 
     """Server handshake, establish E2E tunnel for password exchange"""
 
-    def handshake(self):
-        if not get_key(self.destination):
-            public = self.private.gen_public_key()
-            command_packet = {
-                'command': 'secure_friend',
-                'content': public
-            }
-            self.factory.client.transport.write(dumps(command_packet).encode())
-
     def secure(self):
         self.private = DiffieHellman()
         public = self.private.gen_public_key()
@@ -77,6 +66,15 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(command_packet).encode())
 
     """Functions that send data to server"""
+
+    def friend_shake(self):
+        if not get_key(self.destination):
+            public = self.private.gen_public_key()
+            command_packet = {
+                'command': 'secure_friend',
+                'content': public
+            }
+            self.factory.client.transport.write(dumps(command_packet).encode())
 
     def send_login_data(self):
         if not self.failed_login:
@@ -148,7 +146,6 @@ class ChatApp(App):
                 elif command['command'] == 'friend_key':
                     add_key(command['friend'], self.private.gen_shared_key(command['content']))
                 elif command['command'] == 'user exists':
-                    print("exists")
                     self.root.ids.username_fail.text = ""
                     self.root.ids.passwd_fail.text = ""
                     self.root.ids.passwd_r_fail.text = ""
@@ -180,9 +177,22 @@ class ChatApp(App):
         self.root.ids.message_box = wid
 
     def new_chat(self):
+
+        def send_chat_request(text_object):
+            add_private_key(text_object.text, self.private.get_private_key())
+            packet = {
+                'username': self.username,
+                'command': 'friend_request',
+                'key': self.private.gen_public_key(),
+                'destination': text_box.text
+            }
+            self.factory.client.transport.write(dumps(packet).encode())
+            popup.dismiss()
+
         bar = BoxLayout(orientation='horizontal')
-        bar.add_widget(TextInput(size_hint_x=0.8, id='new_friend'))
-        bar.add_widget(Button(text='Chat!', size_hint_x=0.2))
+        text_box = TextInput(size_hint_x=0.8, write_tab=False, multiline=False)
+        text_box.bind(on_text_validate=send_chat_request)
+        bar.add_widget(text_box)
         popup = Popup(title='Test popup',
                       content=bar,
                       size_hint=(None, None), size=(800, 400))
@@ -200,6 +210,9 @@ class ChatApp(App):
         messages = ""
         for i in messages:
             self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left', 'height': 50})
+
+    def load_requests(self):
+        pass
 
 
 class Client(Protocol):

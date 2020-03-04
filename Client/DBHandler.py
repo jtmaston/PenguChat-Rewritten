@@ -9,10 +9,18 @@ path += '\\PenguChat\\DB\\messages.db'
 db = SqliteDatabase(path)
 
 
-class Auth(Model):
+class CommonKeys(Model):
     partner_name = CharField(100)
-    common_key = BlobField()
-    key_updated = DateTimeField()
+    common_key = BlobField(null=True)
+    key_updated = DateTimeField(null=True)
+
+    class Meta:
+        database = db
+
+
+class PrivateKeys(Model):
+    partner_name = CharField(100)
+    self_private_key = BlobField(null=True)
 
     class Meta:
         database = db
@@ -29,14 +37,20 @@ class Messages(Model):
 
 
 def add_key(partner_name, common_key):
-    new_key = Auth(partner_name=partner_name, common_key=common_key, key_updated=datetime.now())
+    new_key = CommonKeys(partner_name=partner_name, common_key=common_key, key_updated=datetime.now())
+    new_key.save()
+
+
+def add_private_key(partner_name, private_key):
+    private_key = str(private_key).encode()
+    new_key = PrivateKeys(partner_name=partner_name, self_private_key=private_key)
     new_key.save()
 
 
 def get_key(partner_name):
     try:
-        query = Auth.get(Auth.partner_name == partner_name)
-    except Auth.DoesNotExist:
+        query = CommonKeys.get(CommonKeys.partner_name == partner_name)
+    except CommonKeys.DoesNotExist:
         return False
     else:
         return query.common_key
@@ -63,14 +77,15 @@ def save_message(message):
 
 
 try:
-    db.create_tables([Auth, Messages])
+    db.create_tables([CommonKeys, Messages, PrivateKeys])
 except OperationalError as t:
+    print(t)
     try:
         makedirs(path)
     except FileExistsError:
         pass
     try:
-        open(path + '\\messages.db')
+        open(path)
     except FileNotFoundError:
-        with open(path + '\\messages.db', 'w+'):
+        with open(path):
             pass
