@@ -259,6 +259,7 @@ ScreenManager:
 			Window.size = (1080, 720)
 			app.load_friends()
 			app.load_messages()
+			app.load_requests()
 			app.hide_message_box()
 		name: 'chat_room'
 		BoxLayout:
@@ -283,8 +284,9 @@ ScreenManager:
                     id: new_convo_count
                     size_hint_x: 0.2
                 Button:
-                    text: 'Settings'
+                    text: 'Logout'
                     size_hint_x: 0.2
+                    on_press: app.logout()
                 Button:
                     text: 'Start a new chat!'
                     on_press: app.new_chat()

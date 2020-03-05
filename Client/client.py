@@ -114,6 +114,11 @@ class ChatApp(App):
             self.root.current = 'loading_screen'
             self.factory.client.transport.write(dumps(signup_packet).encode())
 
+    def logout(self):
+        self.factory.client.transport.loseConnection()
+        self.root.current = 'login'
+        self.root.ids.friend_list.data = []
+
     def send(self):
         message_text = self.root.ids.message_content.text
         self.root.ids.message_content.text = ""
@@ -156,6 +161,9 @@ class ChatApp(App):
                     self.root.ids.loginPass_failed.text = ""
                     self.root.ids.loginUsr_failed.text = ""
                     self.failed_login = True
+                elif command['command'] == 'friend_request':
+                    print('here')
+                    add_request(command)
 
     def change_chat_wrapper(self, name):
         def change_chat(parent=self):
@@ -183,8 +191,9 @@ class ChatApp(App):
             packet = {
                 'sender': self.username,
                 'command': 'friend_request',
-                'key': self.private.gen_public_key(),
-                'destination': text_box.text
+                'content': self.private.gen_public_key(),
+                'destination': text_box.text,
+                'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
             }
             self.factory.client.transport.write(dumps(packet).encode())
             popup.dismiss()
@@ -212,7 +221,7 @@ class ChatApp(App):
             self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left', 'height': 50})
 
     def load_requests(self):
-        pass
+        self.root.ids.new_convo_count.text = f"Requests ({len(get_requests(self.username))})"
 
 
 class Client(Protocol):
@@ -234,8 +243,8 @@ class Client(Protocol):
                 else:
                     if packet['command'] == 'message':
                         save_message(packet)
-                    elif packet['command'] == 'secure_friend':
-                        Commands.put({'command': 'friend_key', 'friend': packet['sender'], 'content': packet['key']})
+                    else:
+                        Commands.put(packet)
 
     def connectionLost(self, reason=connectionDone):
         print(reason.value)

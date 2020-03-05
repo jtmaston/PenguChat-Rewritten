@@ -42,6 +42,7 @@ class Messages(Model):
 class Requests(Model):
     sender = CharField(100)
     public_key = BlobField()
+    destination = CharField(100)
 
     class Meta:
         database = db
@@ -82,11 +83,11 @@ def save_message(message):
 
 
 def add_request(packet):
-    Requests(sender=packet['sender'], public_key=packet['content']).save()
+    Requests(sender=packet['sender'], public_key=packet['content'], destination=packet['destination']).save()
 
 
-def get_requests():
-    query = Requests.select(Requests.sender)
+def get_requests(username):
+    query = Requests.select(Requests.sender).where(Requests.destination == username)
     return list(dict.fromkeys([i.sender for i in query if i.sender]))
 
 

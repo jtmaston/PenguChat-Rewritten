@@ -1,3 +1,5 @@
+# TODO: The database handler needs a redesign
+
 from datetime import datetime
 
 import bcrypt
