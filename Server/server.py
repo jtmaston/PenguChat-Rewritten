@@ -22,13 +22,14 @@ class Server(Protocol):
         pass
 
     def connectionLost(self, reason=connectionDone):
-        print(self.endpoint_username + " logged out.")
-        del self.factory.connections[self.endpoint_username]
-        self.endpoint_username = None
+        if self.endpoint_username is not None:
+            print(self.endpoint_username + " logged out.")
+            del self.factory.connections[self.endpoint_username]
+            self.endpoint_username = None
 
     def dataReceived(self, data):
-        packet = json.loads(data)
         print(data)
+        packet = json.loads(data)
         if packet['command'] == 'secure':
             private = DiffieHellman()
             public = private.gen_public_key()

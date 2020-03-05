@@ -164,7 +164,7 @@ ScreenManager:
 			BlueButton:
 				text: 'Sign up'
 				color: 0, 0, 0, 1
-				on_press: app.sign_up_redirect()
+				on_press: app.root.current = 'signup'
 	LoginScreen:
 		name: 'signup_fail'
 		BoxLayout:
@@ -255,7 +255,7 @@ ScreenManager:
 			orientation: 'vertical'
 
 	Screen:
-		on_pre_enter:
+		on_enter:
 			Window.size = (1080, 720)
 			app.load_friends()
 			app.load_messages()

@@ -58,15 +58,12 @@ def get_key(partner_name):
 
 def get_friends(username):
     friend_list = list()
-    query = Messages.select(Messages.sender)
+    query = Messages.select().where((Messages.destination == username) | (Messages.sender == username))
     for i in query:
         if i.sender not in friend_list and i.sender != username:
-            friend_list.append(i.destination)
-    query = Messages.select(Messages.destination)
-    for i in query:
+            friend_list.append(i.sender)
         if i.destination not in friend_list and i.destination != username:
             friend_list.append(i.destination)
-    friend_list = [i for i in friend_list if i]  # remove empty records
     return friend_list
 
 

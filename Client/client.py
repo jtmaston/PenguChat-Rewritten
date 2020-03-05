@@ -181,7 +181,7 @@ class ChatApp(App):
         def send_chat_request(text_object):
             add_private_key(text_object.text, self.private.get_private_key())
             packet = {
-                'username': self.username,
+                'sender': self.username,
                 'command': 'friend_request',
                 'key': self.private.gen_public_key(),
                 'destination': text_box.text
