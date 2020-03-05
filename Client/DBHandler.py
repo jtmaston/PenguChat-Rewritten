@@ -1,3 +1,6 @@
+# TODO: The database handler needs a redesign
+
+
 from datetime import datetime
 from os import getenv, makedirs
 
@@ -36,6 +39,14 @@ class Messages(Model):
         database = db
 
 
+class Requests(Model):
+    sender = CharField(100)
+    public_key = BlobField()
+
+    class Meta:
+        database = db
+
+
 def add_key(partner_name, common_key):
     new_key = CommonKeys(partner_name=partner_name, common_key=common_key, key_updated=datetime.now())
     new_key.save()
@@ -57,14 +68,11 @@ def get_key(partner_name):
 
 
 def get_friends(username):
-    friend_list = list()
     query = Messages.select().where((Messages.destination == username) | (Messages.sender == username))
-    for i in query:
-        if i.sender not in friend_list and i.sender != username:
-            friend_list.append(i.sender)
-        if i.destination not in friend_list and i.destination != username:
-            friend_list.append(i.destination)
-    return friend_list
+    return list(dict.fromkeys((
+            [i.sender for i in query if i.sender != username] +
+            [i.destination for i in query if i.destination != username]
+    )))
 
 
 def save_message(message):
@@ -73,8 +81,17 @@ def save_message(message):
                                                                                                 "%H:%M:%S")).save()
 
 
+def add_request(packet):
+    Requests(sender=packet['sender'], public_key=packet['content']).save()
+
+
+def get_requests():
+    query = Requests.select(Requests.sender)
+    return list(dict.fromkeys([i.sender for i in query if i.sender]))
+
+
 try:
-    db.create_tables([CommonKeys, Messages, PrivateKeys])
+    db.create_tables([CommonKeys, Messages, PrivateKeys, Requests])
 except OperationalError as t:
     print(t)
     try:
