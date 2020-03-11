@@ -295,11 +295,12 @@ class ClientFactory(Factory):
         Logger.info('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
+        Logger.warning('Application: Connection failed!')
         Commands.put({'command': "504"})
         connector.connect()
-        Logger.warning('Application: Connection failed!')
 
     def clientConnectionLost(self, connector, reason):
+        Logger.info('Application: Disconnected.')
         connector.connect()
 
 
