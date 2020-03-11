@@ -165,7 +165,11 @@ class ChatApp(App):
                     add_request(command)
 
     def change_chat_wrapper(self, name):
-        return self.show_message_box
+        def change_chat():
+            self.destination = name
+            self.show_message_box()
+
+        return change_chat
 
     def hide_message_box(self):
         if not self.check_if_hidden(self.root.ids.message_box):
