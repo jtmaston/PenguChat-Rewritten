@@ -56,13 +56,13 @@ class Server(Protocol):
                         self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
                 reply = {
                     'sender': 'SERVER',
-                    'command': 'login ok'
+                    'command': '200'
                 }
                 self.transport.write(get_transportable_data(reply))
             else:
                 reply = {
                     'sender': 'SERVER',
-                    'command': 'unauthorized'
+                    'command': '401'
                 }
                 self.transport.write(get_transportable_data(reply))
 
@@ -76,13 +76,13 @@ class Server(Protocol):
             if add_user(packet['sender'], password, salt):
                 reply = {
                     'sender': 'SERVER',
-                    'command': 'signup ok'
+                    'command': '201'
                 }
                 self.transport.write(get_transportable_data(reply))
             else:
                 reply = {
                     'sender': 'SERVER',
-                    'command': 'user exists'
+                    'command': '406'
                 }
                 self.transport.write(get_transportable_data(reply))
 
@@ -96,6 +96,12 @@ class Server(Protocol):
                     'command': 'processed ok'
                 }
                 self.transport.write(get_transportable_data(reply))
+        else:
+            reply = {
+                'sender': 'SERVER',
+                'command': '400'
+            }
+            self.transport.write(get_transportable_data(reply))
 
 
 class ServerFactory(Factory):

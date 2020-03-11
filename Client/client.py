@@ -139,24 +139,24 @@ class ChatApp(App):
             if command:
                 if command['command'] == 'secure':
                     self.server_key = self.private.gen_shared_key(command['content'])
-                elif command['command'] == 'login ok':
+                elif command['command'] == '200':
                     self.root.current = 'chat_room'
-                elif command['command'] == 'signup ok':
+                elif command['command'] == '201':
                     self.root.current = 'chat_room'
                 elif command['command'] == '504':
                     self.root.current = 'not_connected_screen'
-                elif command['command'] == '200':
+                elif command['command'] == '202':
                     self.secure()
                 # self.root.current = 'login'
                 elif command['command'] == 'friend_key':
                     add_key(command['friend'], self.private.gen_shared_key(command['content']))
-                elif command['command'] == 'user exists':
+                elif command['command'] == '406':
                     self.root.ids.username_fail.text = ""
                     self.root.ids.passwd_fail.text = ""
                     self.root.ids.passwd_r_fail.text = ""
                     self.root.current = 'signup_fail'
                     self.failed_signup = True
-                elif command['command'] == 'unauthorized':
+                elif command['command'] == '401':
                     self.root.current = 'login_failed'
                     self.root.ids.loginPass_failed.text = ""
                     self.root.ids.loginUsr_failed.text = ""
@@ -270,7 +270,7 @@ class Client(Protocol):
         self.destination = None
 
     def connectionMade(self):
-        Commands.put({'command': "200"})
+        Commands.put({'command': "202"})
 
     def dataReceived(self, data):
         print(data)
