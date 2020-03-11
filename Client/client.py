@@ -9,9 +9,6 @@ from json import dumps, loads
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
-from kivy.uix.label import Label
-from kivy.uix.recycleview import RecycleView
-from kivy.uix.button import Button
 
 from queue import Queue
 
@@ -170,39 +167,41 @@ class ChatApp(App):
 
     def change_chat_wrapper(self, name):
         def change_chat(parent=self):
-            wid = self.root.ids.message_box
-            try:
-                wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
-                del wid.saved_attrs
-                self.root.ids.message_box = wid
-                parent.destination = name
-            except AttributeError:
-                parent.destination = name
+            self.show_widget(self.root.ids.message_box)
+            parent.destination = name
 
         return change_chat
 
     def hide_message_box(self):
-        wid = self.root.ids.message_box
-        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
-        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
-        self.root.ids.message_box = wid
+        self.hide_widget(self.root.ids.message_box)
 
     def hide_friends_list(self):
-        wid = self.root.ids.friend_list
-        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
-        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
-        self.root.ids.friend_list = wid
+        self.hide_widget(self.root.ids.friend_list)
+        self.root.ids.request_button.on_press = self.show_friends_list
 
     def show_friends_list(self):
-        self.root.ids.new_convo_count.text = f"Requests ({len(get_requests(self.username))})"
-        self.root.ids.new_convo_count.on_press = self.request_popup
-        wid = self.root.ids.friend_list
+        self.show_widget(self.root.ids.friend_list)
+        self.root.ids.request_button.on_press = self.hide_friends_list
+
+    def change_request_menu(self):
+        requests = get_requests(self.username)
+        requests += ['Danny', 'Carl', 'Lewis', 'Dennis', 'Names', 'Someone']
+        self.root.ids.request_button.text = "Friend list"
+
+    def hide_widget(self, widget):
+        wid = widget
+        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
+        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
+        widget = wid
+
+    def show_widget(self, widget):
+        wid = widget
         try:
             wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
             del wid.saved_attrs
-            self.root.ids.message_box = wid
-        except AttributeError:
-            pass
+            widget = wid
+        except AttributeError as t:
+            print(t)
 
     def new_chat(self):
 
@@ -219,6 +218,7 @@ class ChatApp(App):
             popup.dismiss()
 
         bar = BoxLayout(orientation='horizontal')
+
         text_box = TextInput(size_hint_x=0.8, write_tab=False, multiline=False)
         text_box.bind(on_text_validate=send_chat_request)
         bar.add_widget(text_box)
@@ -241,20 +241,8 @@ class ChatApp(App):
             self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left', 'height': 50})
 
     def load_requests(self):
-        self.root.ids.new_convo_count.text = f"Requests ({len(get_requests(self.username))})"
-
-    def request_popup(self):
-        requests = get_requests(self.username)
-        requests += ['Danny', 'Carl', 'Lewis', 'Dennis', 'Names', 'Someone']
-        self.root.ids.new_convo_count.text = "Friend list"
-        self.hide_friends_list()
-        try:
-            if self.switched_menu:
-                self.root.ids.new_convo_count.on_press = self.show_friends_list
-                del self.switched_menu
-        except AttributeError:
-            self.switched_menu = True
-
+        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
+        self.root.ids.request_button.on_press = self.hide_friends_list
 
 class Client(Protocol):
     def __init__(self):
