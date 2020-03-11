@@ -87,7 +87,7 @@ class ChatApp(App):
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
         except AttributeError:
             self.root.current = 'not_connected_text'
-            return 0
+            return False
         encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
         login_packet = {
             'command': 'login',
@@ -147,7 +147,6 @@ class ChatApp(App):
                     self.root.current = 'not_connected_screen'
                 elif command['command'] == '202':
                     self.secure()
-                # self.root.current = 'login'
                 elif command['command'] == 'friend_key':
                     add_key(command['friend'], self.private.gen_shared_key(command['content']))
                 elif command['command'] == '406':
@@ -163,31 +162,6 @@ class ChatApp(App):
                     self.failed_login = True
                 elif command['command'] == 'friend_request':
                     add_request(command)
-
-    def change_chat_wrapper(self, name):
-        def change_chat():
-            self.destination = name
-            self.show_message_box()
-
-        return change_chat
-
-    def hide_message_box(self):
-        if not self.check_if_hidden(self.root.ids.message_box):
-            self.hide_widget(self.root.ids.message_box)
-
-    def show_message_box(self):
-        if self.check_if_hidden(self.root.ids.message_box):
-            self.show_widget(self.root.ids.message_box)
-
-    def hide_friends_list(self):
-        if not self.check_if_hidden(self.root.ids.message_box):
-            self.hide_widget(self.root.ids.friend_list)
-            self.root.ids.request_button.on_press = self.show_friends_list
-
-    def show_friends_list(self):
-        if self.check_if_hidden(self.root.ids.message_box):
-            self.show_widget(self.root.ids.friend_list)
-            self.root.ids.request_button.on_press = self.hide_friends_list
 
     def change_request_menu(self):
         requests = get_requests(self.username)
@@ -215,7 +189,8 @@ class ChatApp(App):
         bar.add_widget(text_box)
         popup = Popup(title='Test popup',
                       content=bar,
-                      size_hint=(None, None), size=(800, 400))
+                      size_hint=(None, None),
+                      size=(800, 400))
         popup.open()
 
     """Loading methods"""
@@ -224,7 +199,7 @@ class ChatApp(App):
         names = get_friends(self.username)
         for i in names:
             self.root.ids.friend_list.data.append(
-                {'text': i, 'on_press': self.change_chat_wrapper(i), 'size_hint': (1, None)})
+                {'text': i, 'on_press': self.show_message_box(i), 'size_hint': (1, None)})
 
     def load_messages(self):
         messages = ""
@@ -235,24 +210,41 @@ class ChatApp(App):
         self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
         self.root.ids.request_button.on_press = self.hide_friends_list
 
+    """Widget methods"""
+
+    def show_message_box(self, name):
+        def change_chat():
+            self.destination = name
+            self.show_widget(self.root.ids.message_box)
+
+        return change_chat
+
+    def hide_message_box(self):
+        self.hide_widget(self.root.ids.message_box)
+
+    def hide_friends_list(self):
+        self.hide_widget(self.root.ids.friend_list)
+        self.root.ids.request_button.on_press = self.show_friends_list
+
+    def show_friends_list(self):
+        self.show_widget(self.root.ids.friend_list)
+        self.root.ids.request_button.on_press = self.hide_friends_list
+
     """Static methods"""
 
-    @staticmethod
-    def hide_widget(widget):
-        wid = widget
-        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
-        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
-        widget = wid
+    def hide_widget(self, widget):
+        if not self.check_if_hidden(widget):
+            wid = widget
+            wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
+            wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
+            widget = wid
 
-    @staticmethod
-    def show_widget(widget):
+    def show_widget(self, widget):
         wid = widget
-        try:
+        if self.check_if_hidden(widget):
             wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
             del wid.saved_attrs
             widget = wid
-        except AttributeError:
-            pass
 
     @staticmethod
     def check_if_hidden(widget):
@@ -308,7 +300,6 @@ class ClientFactory(Factory):
         Logger.warning('Application: Connection failed!')
 
     def clientConnectionLost(self, connector, reason):
-        Logger.warning('Application: Connection lost!')
         connector.connect()
 
 

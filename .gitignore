@@ -5,6 +5,7 @@ ServerManager.py
 auth.db
 archive.py
 .idea
+Middleware
 *.iml
 out
 gen
