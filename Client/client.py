@@ -65,7 +65,7 @@ class ChatApp(App):
         }
         self.factory.client.transport.write(dumps(command_packet).encode())
 
-    """Functions that send data to server"""
+    """Methods that send data to server"""
 
     def friend_shake(self):
         if not get_key(self.destination):
@@ -131,7 +131,7 @@ class ChatApp(App):
         }
         self.factory.client.transport.write(dumps(packet).encode())
 
-    """Helper functions"""
+    """Helper methods"""
 
     def poll_commands(self):
         if not Commands.empty():
@@ -162,46 +162,33 @@ class ChatApp(App):
                     self.root.ids.loginUsr_failed.text = ""
                     self.failed_login = True
                 elif command['command'] == 'friend_request':
-                    print('here')
                     add_request(command)
 
     def change_chat_wrapper(self, name):
-        def change_chat(parent=self):
-            self.show_widget(self.root.ids.message_box)
-            parent.destination = name
-
-        return change_chat
+        return self.show_message_box
 
     def hide_message_box(self):
-        self.hide_widget(self.root.ids.message_box)
+        if not self.check_if_hidden(self.root.ids.message_box):
+            self.hide_widget(self.root.ids.message_box)
+
+    def show_message_box(self):
+        if self.check_if_hidden(self.root.ids.message_box):
+            self.show_widget(self.root.ids.message_box)
 
     def hide_friends_list(self):
-        self.hide_widget(self.root.ids.friend_list)
-        self.root.ids.request_button.on_press = self.show_friends_list
+        if not self.check_if_hidden(self.root.ids.message_box):
+            self.hide_widget(self.root.ids.friend_list)
+            self.root.ids.request_button.on_press = self.show_friends_list
 
     def show_friends_list(self):
-        self.show_widget(self.root.ids.friend_list)
-        self.root.ids.request_button.on_press = self.hide_friends_list
+        if self.check_if_hidden(self.root.ids.message_box):
+            self.show_widget(self.root.ids.friend_list)
+            self.root.ids.request_button.on_press = self.hide_friends_list
 
     def change_request_menu(self):
         requests = get_requests(self.username)
         requests += ['Danny', 'Carl', 'Lewis', 'Dennis', 'Names', 'Someone']
         self.root.ids.request_button.text = "Friend list"
-
-    def hide_widget(self, widget):
-        wid = widget
-        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
-        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
-        widget = wid
-
-    def show_widget(self, widget):
-        wid = widget
-        try:
-            wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
-            del wid.saved_attrs
-            widget = wid
-        except AttributeError as t:
-            print(t)
 
     def new_chat(self):
 
@@ -227,7 +214,7 @@ class ChatApp(App):
                       size_hint=(None, None), size=(800, 400))
         popup.open()
 
-    """Loading functions"""
+    """Loading methods"""
 
     def load_friends(self):
         names = get_friends(self.username)
@@ -243,6 +230,35 @@ class ChatApp(App):
     def load_requests(self):
         self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
         self.root.ids.request_button.on_press = self.hide_friends_list
+
+    """Static methods"""
+
+    @staticmethod
+    def hide_widget(widget):
+        wid = widget
+        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
+        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
+        widget = wid
+
+    @staticmethod
+    def show_widget(widget):
+        wid = widget
+        try:
+            wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
+            del wid.saved_attrs
+            widget = wid
+        except AttributeError:
+            pass
+
+    @staticmethod
+    def check_if_hidden(widget):
+        try:
+            widget.saved_attrs
+        except AttributeError:
+            return False
+        else:
+            return True
+
 
 class Client(Protocol):
     def __init__(self):
