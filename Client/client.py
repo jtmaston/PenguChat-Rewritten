@@ -9,6 +9,9 @@ from json import dumps, loads
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
+from kivy.uix.label import Label
+from kivy.uix.recycleview import RecycleView
+from kivy.uix.button import Button
 
 from queue import Queue
 
@@ -49,7 +52,7 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'loading_screen'
+        self.root.current = 'chat_room'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
@@ -147,7 +150,7 @@ class ChatApp(App):
                     self.root.current = 'not_connected_screen'
                 elif command['command'] == '200':
                     self.secure()
-                    self.root.current = 'login'
+                # self.root.current = 'login'
                 elif command['command'] == 'friend_key':
                     add_key(command['friend'], self.private.gen_shared_key(command['content']))
                 elif command['command'] == 'user exists':
@@ -183,6 +186,23 @@ class ChatApp(App):
         wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
         wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
         self.root.ids.message_box = wid
+
+    def hide_friends_list(self):
+        wid = self.root.ids.friend_list
+        wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
+        wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
+        self.root.ids.friend_list = wid
+
+    def show_friends_list(self):
+        self.root.ids.new_convo_count.text = f"Requests ({len(get_requests(self.username))})"
+        self.root.ids.new_convo_count.on_press = self.request_popup
+        wid = self.root.ids.friend_list
+        try:
+            wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
+            del wid.saved_attrs
+            self.root.ids.message_box = wid
+        except AttributeError:
+            pass
 
     def new_chat(self):
 
@@ -222,6 +242,18 @@ class ChatApp(App):
 
     def load_requests(self):
         self.root.ids.new_convo_count.text = f"Requests ({len(get_requests(self.username))})"
+
+    def request_popup(self):
+        requests = get_requests(self.username)
+        requests += ['Danny', 'Carl', 'Lewis', 'Dennis', 'Names', 'Someone']
+        self.root.ids.new_convo_count.text = "Friend list"
+        self.hide_friends_list()
+        try:
+            if self.switched_menu:
+                self.root.ids.new_convo_count.on_press = self.show_friends_list
+                del self.switched_menu
+        except AttributeError:
+            self.switched_menu = True
 
 
 class Client(Protocol):
