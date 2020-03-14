@@ -7,12 +7,23 @@
 	padding: 10
 	spacing: 10
 
-<GridLayout>:
+<LoginGridLayout@GridLayout>:
 	rows: 3
 	cols: 2
 	spacing: 10
 	row_default_height: 90
 	row_force_default: True
+
+<ListGridLayout@GridLayout>:
+    id: scroller
+    size_hint_y: None
+    height: self.minimum_height
+    cols: 1
+    rows: 0
+    row_default_height: '100dp'
+    row_force_default: True
+    spacing: 0, 5
+    orientation: 'vertical'
 
 <Label>:
 	font_size: 25
@@ -44,14 +55,6 @@
 	multiline: False
 	padding: [10, 0.5 * (self.height - self.line_height)]
 
-<ScrollView>:
-	canvas.before:
-		Color:
-			rgb: 0, 0, 0
-		Rectangle:
-			pos: self.pos
-			size: self.size
-	size_hint: (0.4, 1)
 
 <ChatLabel@Label>:
 	text_size: (self.width, None)
@@ -83,13 +86,6 @@
 	size_hint_y: None
 	valign: 'center'
 	height: self.texture_size[1]
-
-<HorizBox@BoxLayout>
-    orientation: 'horizontal'
-    Label
-        text:"test"
-    Button
-    Button
 
 <RequestPopup@Popup>
     RecycleView:
@@ -131,7 +127,7 @@ ScreenManager:
                         pos: self.pos
                         size: self.size
                 text: "Username or password incorrect!"
-			GridLayout:
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 
@@ -163,7 +159,7 @@ ScreenManager:
 		name: 'login'
 		BoxLayout:
 			orientation: 'vertical'
-			GridLayout:
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 
@@ -203,7 +199,7 @@ ScreenManager:
                         pos: self.pos
                         size: self.size
                 text: "That username is taken!"
-			GridLayout:
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 
@@ -243,7 +239,7 @@ ScreenManager:
 		name: 'signup'
 		BoxLayout:
 			orientation: 'vertical'
-			GridLayout:
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 
@@ -317,49 +313,31 @@ ScreenManager:
                     on_press: app.new_chat()
 
             BoxLayout:
-                padding: 0
+                canvas.before:
+                    Color:
+                        rgba: 0.5, 0.5, 0.5, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                padding: 0, '5px'
                 spacing: 0
                 orientation: 'horizontal'
-                RecycleView:
-                    canvas.before:
-                        Color:
-                            rgba: 0.5, 0.5, 0.5, 1
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-                    id: friend_list
-                    viewclass: 'Button'
-                    RecycleBoxLayout:
-                        size_hint_y: None
-                        height: self.minimum_height
-                        orientation: 'vertical'
+                ScrollView:
+                    size_hint_x: 1/3
+	                ListGridLayout:
+	                    id:friend_list
 
                 BoxLayout:
                     padding: 0
                     orientation: 'vertical'
                     canvas.before:
                         Color:
-                            rgba: 1, 1, 1, 0.5
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-                    RecycleView:
-                        size_hint_x: 1
-						id: messages
-						canvas.before:
-							Color:
-								rgba: 1, 1, 1, 1
-							Rectangle:
-								source:"assets/large-wallpaper.jpg"
-								pos: self.pos
-								size: self.size
-						viewclass: 'MessageLabel'
-                        RecycleBoxLayout:
-                            default_size_hint: 1, None
-                            size_hint_y: None
-                            height: self.minimum_height
-                            orientation: 'vertical'
-                            row_default_height: 0
+							rgba: 1, 1, 1, 1
+						Rectangle:
+							source:"assets/large-wallpaper.jpg"
+							pos: self.pos
+							size: self.size
+
                     BoxLayout:
                         padding: 0
                         spacing: 0
@@ -387,7 +365,7 @@ ScreenManager:
                         pos: self.pos
                         size: self.size
                 text: "Not connected!"
-			GridLayout:
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 				TextInput:

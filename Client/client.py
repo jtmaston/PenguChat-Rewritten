@@ -1,5 +1,7 @@
 from os import getenv, environ
 
+from kivy.uix.button import Button
+
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
@@ -49,7 +51,7 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'chat_room'
+        self.root.current = 'loading_screen'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
         reactor.connectTCP("localhost", 8123, self.factory)
@@ -139,6 +141,7 @@ class ChatApp(App):
             if command:
                 if command['command'] == 'secure':
                     self.server_key = self.private.gen_shared_key(command['content'])
+                    # self.root.current = 'login'
                 elif command['command'] == '200':
                     self.root.current = 'chat_room'
                 elif command['command'] == '201':
@@ -198,8 +201,9 @@ class ChatApp(App):
     def load_friends(self):
         names = get_friends(self.username)
         for i in names:
-            self.root.ids.friend_list.data.append(
-                {'text': i, 'on_press': self.show_message_box(i), 'size_hint': (1, None)})
+            a = Button(text=i, on_press=self.show_message_box)
+            self.root.ids.friend_list.rows += 1
+            self.root.ids.friend_list.add_widget(a)
 
     def load_messages(self):
         messages = ""
@@ -212,12 +216,9 @@ class ChatApp(App):
 
     """Widget methods"""
 
-    def show_message_box(self, name):
-        def change_chat():
-            self.destination = name
-            self.show_widget(self.root.ids.message_box)
-
-        return change_chat
+    def show_message_box(self, button_object):
+        self.destination = button_object.text
+        self.show_widget(self.root.ids.message_box)
 
     def hide_message_box(self):
         self.hide_widget(self.root.ids.message_box)
