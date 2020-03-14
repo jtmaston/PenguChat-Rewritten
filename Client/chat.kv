@@ -1,7 +1,6 @@
 #:import C kivy.utils.get_color_from_hex
 #:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
 #:import Window kivy.core.window.Window
-#:import RecycleView kivy.uix.recycleview
 #:import Factory kivy.factory.Factory
 <BoxLayout>:
 	padding: 10
@@ -86,23 +85,6 @@
 	size_hint_y: None
 	valign: 'center'
 	height: self.texture_size[1]
-
-<RequestPopup@Popup>
-    RecycleView:
-        size: 1, 1
-        canvas.before:
-            Color:
-                rgba: 0, 0.5, 0.5, 1
-            Rectangle:
-                pos: self.pos
-                size: self.size
-        id: friend_list
-        viewclass: 'HorizBox'
-        RecycleBoxLayout:
-            size_hint_y: None
-            size_hint_x: 1
-            height: self.minimum_height
-            orientation: 'vertical'
 
 ScreenManager:
 	transition: RiseInTransition()

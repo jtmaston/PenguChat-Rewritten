@@ -1,7 +1,5 @@
 from os import getenv, environ
 
-from kivy.uix.button import Button
-
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
@@ -11,6 +9,7 @@ from json import dumps, loads
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
 
 from queue import Queue
 
@@ -119,7 +118,6 @@ class ChatApp(App):
     def logout(self):
         self.factory.client.transport.loseConnection()
         self.root.current = 'login'
-        self.root.ids.friend_list.data = []
 
     def send(self):
         message_text = self.root.ids.message_content.text
@@ -208,7 +206,7 @@ class ChatApp(App):
     def load_messages(self):
         messages = ""
         for i in messages:
-            self.root.ids.messages.data.append({'text': i, 'color': (0, 0, 0, 1), 'halign': 'left', 'height': 50})
+            pass  # TODO
 
     def load_requests(self):
         self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
