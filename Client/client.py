@@ -134,7 +134,7 @@ class ChatApp(App):
 
     def logout(self):
         self.factory.client.transport.loseConnection()
-        self.root.current = 'login'
+        self.root.current = 'loading_screen'
 
     def send(self):
         message_text = self.root.ids.message_content.text
@@ -206,6 +206,13 @@ class ChatApp(App):
                       size=(800, 400))
         popup.open()
 
+    def accept_request(self, button_object):
+        friend = button_object.parent.username
+
+    def deny_request(self, button_object):
+        self.root.ids.sidebar.remove_widget(button_object.parent)
+        delete_request(button_object.parent.username)
+
     """Loading methods"""
 
     def set_sidebar_to_flist(self):
@@ -227,9 +234,10 @@ class ChatApp(App):
         requests = get_requests(self.username)
         for i in requests:
             box = CustomBoxLayout(orientation='horizontal')
+            box.username = i
             a = Label(text=i)
-            b = Button(text='Accept')
-            c = Button(text='Decline')
+            b = Button(text='Accept', on_press=self.accept_request)
+            c = Button(text='Decline', on_press=self.deny_request)
             box.add_widget(a)
             box.add_widget(b)
             box.add_widget(c)

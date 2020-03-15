@@ -86,6 +86,11 @@ def add_request(packet):
     Requests(sender=packet['sender'], public_key=packet['content'], destination=packet['destination']).save()
 
 
+def delete_request(username):
+    Requests.get(Requests.sender == username).delete_instance()
+    db.commit()
+
+
 def get_requests(username):
     query = Requests.select(Requests.sender).where(Requests.destination == username)
     return list(dict.fromkeys([i.sender for i in query if i.sender]))
