@@ -10,6 +10,9 @@ from json import dumps, loads
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.graphics.context_instructions import Color
+from kivy.graphics.vertex_instructions import Rectangle
 
 from queue import Queue
 
@@ -31,6 +34,20 @@ from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 
 Commands = Queue()
+
+
+class CustomBoxLayout(BoxLayout):
+    def __init__(self, **kwargs):
+        super(CustomBoxLayout, self).__init__(**kwargs)
+        with self.canvas.before:
+            self.color_widget = Color(0.4, 0.4, 0.4, 1)  # red
+            self._rectangle = Rectangle()
+
+    def on_size(self, *args):
+        if args:
+            pass
+        self._rectangle.size = self.size
+        self._rectangle.pos = self.pos
 
 
 class ChatApp(App):
@@ -139,7 +156,7 @@ class ChatApp(App):
             if command:
                 if command['command'] == 'secure':
                     self.server_key = self.private.gen_shared_key(command['content'])
-                    # self.root.current = 'login'
+                    self.root.current = 'login'
                 elif command['command'] == '200':
                     self.root.current = 'chat_room'
                 elif command['command'] == '201':
@@ -163,11 +180,6 @@ class ChatApp(App):
                     self.failed_login = True
                 elif command['command'] == 'friend_request':
                     add_request(command)
-
-    def change_request_menu(self):
-        requests = get_requests(self.username)
-        requests += ['Danny', 'Carl', 'Lewis', 'Dennis', 'Names', 'Someone']
-        self.root.ids.request_button.text = "Friend list"
 
     def new_chat(self):
 
@@ -196,21 +208,37 @@ class ChatApp(App):
 
     """Loading methods"""
 
-    def load_friends(self):
+    def set_sidebar_to_flist(self):
+        self.root.ids.sidebar.clear_widgets()
+        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
+        self.root.ids.request_button.on_press = self.set_sidebar_to_rlist
+
         names = get_friends(self.username)
         for i in names:
             a = Button(text=i, on_press=self.show_message_box)
-            self.root.ids.friend_list.rows += 1
-            self.root.ids.friend_list.add_widget(a)
+            self.root.ids.sidebar.rows += 1
+            self.root.ids.sidebar.add_widget(a)
 
-    def load_messages(self):
-        messages = ""
-        for i in messages:
-            pass  # TODO
+    def set_sidebar_to_rlist(self):
+        self.root.ids.sidebar.clear_widgets()
+        self.root.ids.request_button.text = "Friends"
+        self.root.ids.request_button.on_press = self.set_sidebar_to_flist
 
-    def load_requests(self):
-        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
-        self.root.ids.request_button.on_press = self.hide_friends_list
+        requests = get_requests(self.username)
+        for i in requests:
+            box = CustomBoxLayout(orientation='horizontal')
+            a = Label(text=i)
+            b = Button(text='Accept')
+            c = Button(text='Decline')
+            box.add_widget(a)
+            box.add_widget(b)
+            box.add_widget(c)
+            self.root.ids.sidebar.rows += 1
+            self.root.ids.sidebar.add_widget(box)
+
+    def init_chat_room(self):
+        self.hide_message_box()
+        self.set_sidebar_to_flist()
 
     """Widget methods"""
 
@@ -221,14 +249,6 @@ class ChatApp(App):
     def hide_message_box(self):
         self.hide_widget(self.root.ids.message_box)
 
-    def hide_friends_list(self):
-        self.hide_widget(self.root.ids.friend_list)
-        self.root.ids.request_button.on_press = self.show_friends_list
-
-    def show_friends_list(self):
-        self.show_widget(self.root.ids.friend_list)
-        self.root.ids.request_button.on_press = self.hide_friends_list
-
     """Static methods"""
 
     def hide_widget(self, widget):
@@ -237,6 +257,8 @@ class ChatApp(App):
             wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
             wid.height, wid.size_hint_y, wid.opacity, wid.disabled = 0, None, 0, True
             widget = wid
+            if widget:
+                pass
 
     def show_widget(self, widget):
         wid = widget
@@ -244,6 +266,8 @@ class ChatApp(App):
             wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
             del wid.saved_attrs
             widget = wid
+            if widget:
+                pass
 
     @staticmethod
     def check_if_hidden(widget):

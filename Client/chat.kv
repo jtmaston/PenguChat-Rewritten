@@ -247,10 +247,7 @@ ScreenManager:
 	Screen:
 		on_enter:
 			Window.size = (1080, 720)
-			app.load_friends()
-			app.load_messages()
-			app.load_requests()
-			app.hide_message_box()
+			app.init_chat_room()
 		name: 'chat_room'
 		BoxLayout:
 		    orientation: 'vertical'
@@ -282,7 +279,7 @@ ScreenManager:
                 ScrollView:
                     size_hint_x: 0.4
 	                ListGridLayout:
-	                    id:friend_list
+	                    id: sidebar
 
                 BoxLayout:
                     padding: 0
