@@ -1,17 +1,29 @@
 #:import C kivy.utils.get_color_from_hex
 #:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
 #:import Window kivy.core.window.Window
-# import Clock from kivy.clock
+#:import Factory kivy.factory.Factory
 <BoxLayout>:
 	padding: 10
 	spacing: 10
 
-<GridLayout>:
+<LoginGridLayout@GridLayout>:
 	rows: 3
 	cols: 2
 	spacing: 10
 	row_default_height: 90
 	row_force_default: True
+
+<ListGridLayout@GridLayout>:
+    id: scroller
+    size_hint_y: None
+    height: self.minimum_height
+    cols: 1
+    rows: 0
+    row_default_height: '100dp'
+    row_force_default: True
+    spacing: 0, 5
+    orientation: 'vertical'
+
 <Label>:
 	font_size: 25
 
@@ -31,34 +43,10 @@
 	background_down: 'assets/red_button_down.png'
 	border: (2, 2, 2, 2)
 
-<List@Button>
-	font_size:20
-	height: 100
-	size_hint: 1, None
-
-
 <TextInput>:
 	font_size: 30
 	multiline: False
 	padding: [10, 0.5 * (self.height - self.line_height)]
-
-<ScrollView>:
-	canvas.before:
-		Color:
-			rgb: 0, 0, 0
-		Rectangle:
-			pos: self.pos
-			size: self.size
-	size_hint: (0.4, 1)
-
-<ChatLabel@Label>:
-	text_size: (self.width, None)
-	halign: 'left'
-	valign: 'top'
-	padding: (-10, 0)  # fixed in Kivy 1.8.1
-	size_hint: (1, None)
-	height: self.texture_size[1]
-	markup: True
 
 <LoginLabel@Label>:
 	color: 0, 0, 0, 1
@@ -68,42 +56,67 @@
 	valign: 'middle'
 	size_hint: (0.4, 1)
 
-<CircularButton@Button>:
-	canvas:
-		Ellipse:
-			pos: self.pos
-			size: self.size
-
 <LoginScreen@Screen>:
+    on_pre_enter:
+        Window.size = (500, 700)
 	canvas:
 		Rectangle:
 			source:"assets/wallpaper.jpg"
 			pos: self.pos
 			size: self.size
 
-<LoadingScreen@Screen>
-    on_pre_enter: print("here")
+<GrayBoxLayout@BoxLayout>
+	canvas.before:
+	    Color:
+	        rgba: 0.5, 0.5, 0.5, 1
+	    Rectangle:
+	        pos: self.pos
+	        size: self.size
 
 ScreenManager:
 	transition: RiseInTransition()
 
-	LoadingScreen:
-	    name:'loading_screen'
+	request_button: request_button.__self__
+	sidebar: sidebar.__self__
+	message_box: message_box.__self__
+	passwd: passwd.__self__
+	passwd_r: passwd_r.__self__
+	passwd_fail: passwd_fail.__self__
+	passwd_r_fail: passwd_r_fail.__self__
+	loginPass: loginPass.__self__
+	loginUsr: loginUsr.__self__
+	loginPass_failed: loginPass_failed.__self__
+	loginUsr_failed: loginUsr_failed.__self__
+	username: username.__self__
+	username_fail: username_fail.__self__
+	message_content:  message_content.__self__
 
 	LoginScreen:
-		name: 'login'
-		on_enter:
-		    app.secure()
+	    name:'loading_screen'
+	    Image:
+	        size: self.size
+	        pos: self.pos
+	        source: "Assets/Loading.gif"
 
+    LoginScreen:
+		name: 'login_failed'
 		BoxLayout:
 			orientation: 'vertical'
-			GridLayout:
+			Label:
+			    size_hint_y: 0.2
+                canvas.before:
+                    Color:
+                        rgba: 1, 0, 0, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                text: "Username or password incorrect!"
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 
 				TextInput:
-					id: loginUsr
-					text:'Alexey'
+					id: loginUsr_failed
 					write_tab: False
 					multiline: False
 
@@ -111,9 +124,8 @@ ScreenManager:
 					text: 'Password'
 
 				TextInput:
-					id: loginPass
+					id: loginPass_failed
 					password: True
-					text:'DatBoi30'
 					write_tab: False
 					multiline: False
 					on_text_validate: app.send_login_data()
@@ -125,18 +137,98 @@ ScreenManager:
 			BlueButton:
 				text: 'Sign up'
 				color: 0, 0, 0, 1
-				on_press: app.sign_up_redirect()
+				on_press: app.root.current = 'signup'
+
+	LoginScreen:
+		name: 'login'
+		BoxLayout:
+			orientation: 'vertical'
+			LoginGridLayout:
+				LoginLabel:
+					text: 'Username:'
+
+				TextInput:
+					id: loginUsr
+					write_tab: False
+					multiline: False
+
+				LoginLabel:
+					text: 'Password'
+
+				TextInput:
+					id: loginPass
+					password: True
+					write_tab: False
+					multiline: False
+					on_text_validate: app.send_login_data()
+
+			BlueButton:
+				color: 0, 0, 0, 1
+				text: 'Connect'
+				on_press: app.send_login_data()
+			BlueButton:
+				text: 'Sign up'
+				color: 0, 0, 0, 1
+				on_press: app.root.current = 'signup'
+	LoginScreen:
+		name: 'signup_fail'
+		BoxLayout:
+			orientation: 'vertical'
+			Label:
+			    size_hint_y: 0.2
+                canvas.before:
+                    Color:
+                        rgba: 1, 0, 0, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                text: "That username is taken!"
+			LoginGridLayout:
+				LoginLabel:
+					text: 'Username:'
+
+				TextInput:
+					id: username_fail
+					write_tab: False
+					multiline: False
+
+				LoginLabel:
+					text: 'Password'
+
+				TextInput:
+					id: passwd_fail
+					password: True
+					write_tab: False
+					multiline: False
+
+				LoginLabel:
+					text: 'Password (again)'
+
+				TextInput:
+					id: passwd_r_fail
+					password: True
+					write_tab: False
+					multiline: False
+					on_text_validate: app.send_sign_up_data()
+
+			BlueButton:
+				text: 'Sign up'
+				color: 0,0,0,1
+				on_press: app.send_sign_up_data()
+
+		BoxLayout:
+			orientation: 'vertical'
+
 	LoginScreen:
 		name: 'signup'
 		BoxLayout:
 			orientation: 'vertical'
-			GridLayout:
+			LoginGridLayout:
 				LoginLabel:
 					text: 'Username:'
 
 				TextInput:
 					id: username
-					text: ''
 					write_tab: False
 					multiline: False
 
@@ -168,34 +260,95 @@ ScreenManager:
 			orientation: 'vertical'
 
 	Screen:
-		on_pre_enter:
+		on_enter:
 			Window.size = (1080, 720)
-		canvas:
-			Rectangle:
-				source:"assets/large-wallpaper.jpg"
-				pos: self.pos
-				size: self.size
+			app.init_chat_room()
 		name: 'chat_room'
 		BoxLayout:
-			orientation: 'horizontal'
-			ScrollView:
-				do_scroll_y: True
-				StackLayout:
-				    id: messageList
-					size_hint: 1, None
+		    orientation: 'vertical'
+		    spacing: 0
+		    padding: 0
+		    GrayBoxLayout:
+		        padding: 0
+                id: top_bar
+                height: 60
+                orientation: 'horizontal'
+                size_hint: (1, None)
+                spacing: 0
+                Button:
+                    id: request_button
+                    size_hint_x: 0.2
 
+                Button:
+                    text: 'Logout'
+                    size_hint_x: 0.2
+                    on_press: app.logout()
+                Button:
+                    text: 'Start a new chat!'
+                    on_press: app.new_chat()
 
-			BoxLayout:
-				height: 90
-				orientation: 'horizontal'
-				padding: 0
-				size_hint: (1, None)
+            GrayBoxLayout:
+                padding: 0, '5px'
+                spacing: 0
+                orientation: 'horizontal'
+                ScrollView:
+                    size_hint_x: 0.4
+	                ListGridLayout:
+	                    id: sidebar
 
+                BoxLayout:
+                    padding: 0
+                    orientation: 'vertical'
+                    canvas.before:
+                        Color:
+							rgba: 1, 1, 1, 1
+						Rectangle:
+							source:"assets/large-wallpaper.jpg"
+							pos: self.pos
+							size: self.size
+
+                    BoxLayout:
+                        padding: 0
+                        spacing: 0
+                        id: message_box
+                        height: 90
+                        orientation: 'horizontal'
+                        size_hint: (1, None)
+                        TextInput:
+                            id: message_content
+                            on_text_validate: app.send()
+                        Button:
+                            text: 'Send'
+                            on_press: app.send()
+                            size_hint: (0.3, 1)
+    LoginScreen:
+		name: 'not_connected_screen'
+		BoxLayout:
+			orientation: 'vertical'
+			Label:
+			    size_hint_y: 0.2
+                canvas.before:
+                    Color:
+                        rgba: 1, 0, 0, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                text: "Not connected!"
+			LoginGridLayout:
+				LoginLabel:
+					text: 'Username:'
 				TextInput:
-					id: message
-					on_text_validate: app.send()
+					disabled: True
+				LoginLabel:
+					text: 'Password'
+				TextInput:
 
-				Button:
-					text: 'Send'
-					on_press: app.send()
-					size_hint: (0.3, 1)
+					disabled: True
+			BlueButton:
+				color: 0, 0, 0, 1
+				text: 'Connect'
+				disabled: True
+			BlueButton:
+				text: 'Sign up'
+				color: 0, 0, 0, 1
+				disabled: True

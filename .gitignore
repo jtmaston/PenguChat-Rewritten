@@ -5,9 +5,11 @@ ServerManager.py
 auth.db
 archive.py
 .idea
+Middleware
 *.iml
 out
 gen
+Temp/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
