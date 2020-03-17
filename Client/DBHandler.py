@@ -32,7 +32,7 @@ class PrivateKeys(Model):
 class Messages(Model):
     sender = CharField(100)
     destination = CharField(100)
-    message_text = TextField(100)
+    message_text = BlobField()
     timestamp = DateTimeField()
 
     class Meta:
@@ -48,24 +48,52 @@ class Requests(Model):
         database = db
 
 
-def add_key(partner_name, common_key):
-    new_key = CommonKeys(partner_name=partner_name, common_key=common_key, key_updated=datetime.now())
-    new_key.save()
+def add_common_key(partner_name, common_key):
+    try:
+        query = CommonKeys.get(CommonKeys.partner_name == partner_name)
+    except CommonKeys.DoesNotExist:
+        new_key = CommonKeys(partner_name=partner_name, common_key=common_key, key_updated=datetime.now())
+        new_key.save()
+    else:
+        query.partner_name = partner_name
+        query.common_key = common_key
+        query.key_updated = datetime.now()
+        query.save()
+
+
+def get_common_key(partner_name):
+    try:
+        query = CommonKeys.get(CommonKeys.partner_name == partner_name)
+    except CommonKeys.DoesNotExist:
+        raise DoesNotExist
+    else:
+        return query.common_key
 
 
 def add_private_key(partner_name, private_key):
     private_key = str(private_key).encode()
-    new_key = PrivateKeys(partner_name=partner_name, self_private_key=private_key)
-    new_key.save()
-
-
-def get_key(partner_name):
     try:
-        query = CommonKeys.get(CommonKeys.partner_name == partner_name)
-    except CommonKeys.DoesNotExist:
+        key = PrivateKeys.get(PrivateKeys.partner_name == partner_name)
+    except PrivateKeys.DoesNotExist:
+        new_key = PrivateKeys(partner_name=partner_name, self_private_key=private_key)
+        new_key.save()
+    else:
+        key.self_private_key = private_key
+        key.save()
+
+
+def get_private_key(partner_name):
+    try:
+        key = PrivateKeys.get(PrivateKeys.partner_name == partner_name)
+    except PrivateKeys.DoesNotExist:
         return False
     else:
-        return query.common_key
+        return int(key.self_private_key.decode())
+
+
+def delete_private_key(partner_name):
+    PrivateKeys.get(PrivateKeys.partner_name == partner_name).delete_instance()
+    db.commit()
 
 
 def get_friends(username):
@@ -76,19 +104,37 @@ def get_friends(username):
     )))
 
 
-def save_message(message):
-    Messages(sender=message['sender'], destination=message['destination'],
-             message_text=message['content'], timestamp=datetime.strptime(message['timestamp'], "%m/%d/%Y, "
-                                                                                                "%H:%M:%S")).save()
+def save_message(packet):
+    if type(packet['content']) != 'bytes':
+        message = packet['content'].encode()
+    else:
+        message = packet['content']
+
+    Messages(sender=packet['sender'], destination=packet['destination'],
+             message_text=message, timestamp=datetime.strptime(packet['timestamp'], "%m/%d/%Y, "
+                                                                                    "%H:%M:%S")).save()
 
 
 def add_request(packet):
-    Requests(sender=packet['sender'], public_key=packet['content'], destination=packet['destination']).save()
+    try:
+        key = Requests.get(Requests.sender == packet['sender'])
+    except Requests.DoesNotExist:
+        Requests(sender=packet['sender'],
+                 public_key=str(packet['content']).encode(),
+                 destination=packet['destination']).save()
 
 
 def delete_request(username):
     Requests.get(Requests.sender == username).delete_instance()
     db.commit()
+
+
+def get_key_for_request(username, sender):
+    try:
+        key = Requests.get((Requests.sender == sender) & (Requests.destination == username))
+        return key.public_key
+    except Requests.DoesNotExist:
+        return False
 
 
 def get_requests(username):

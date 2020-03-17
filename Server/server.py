@@ -86,7 +86,9 @@ class Server(Protocol):
                 }
                 self.transport.write(get_transportable_data(reply))
 
-        elif packet['command'] == 'message' or packet['command'] == 'friend_request':
+        elif packet['command'] == 'message' or \
+                packet['command'] == 'friend_request' \
+                or packet['command'] == 'friend_accept':
             try:
                 self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
             except KeyError:
