@@ -90,6 +90,7 @@ ScreenManager:
 	username: username.__self__
 	username_fail: username_fail.__self__
 	message_content:  message_content.__self__
+	conversation: conversation.__self__
 
 	LoginScreen:
 	    name:'loading_screen'
@@ -306,6 +307,8 @@ ScreenManager:
 							source:"assets/large-wallpaper.jpg"
 							pos: self.pos
 							size: self.size
+					ListGridLayout:
+						id: conversation
 
                     BoxLayout:
                         padding: 0

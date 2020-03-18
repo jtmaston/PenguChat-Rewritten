@@ -6,7 +6,7 @@ environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
 
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from json import dumps, loads
 
 from kivy.uix.boxlayout import BoxLayout
@@ -21,7 +21,6 @@ from queue import Queue
 from Crypto.Cipher import AES
 
 from kivy.uix.popup import Popup
-from kivy import Logger
 from kivy.app import App
 from kivy.config import Config
 from kivy.support import install_twisted_reactor
@@ -143,6 +142,7 @@ class ChatApp(App):
             'content': content,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
+        # save_message(packet)  # FIXME: this is a debug setting. When ready for production, uncomment it.
         self.factory.client.transport.write(dumps(packet).encode())
 
     """Helper methods"""
@@ -292,6 +292,16 @@ class ChatApp(App):
             self.root.sidebar.add_widget(box)
         self.root.request_button.canvas.ask_update()
 
+    def load_messages(self, partner):
+        messages = get_messages(partner)
+        for i in messages:
+            cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
+            encrypted = pickle.loads(b64decode(i.message_text))
+            i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1])
+            item = BoxLayout(orientation='horizontal')
+            if i.sender == partner:
+                pass
+
     def init_chat_room(self):
         self.hide_message_box()
         self.set_sidebar_to_flist()
@@ -300,6 +310,7 @@ class ChatApp(App):
 
     def show_message_box(self, button_object):
         self.destination = button_object.text
+        self.load_messages(button_object.text)
         self.show_widget(self.root.message_box)
 
     def hide_message_box(self):
