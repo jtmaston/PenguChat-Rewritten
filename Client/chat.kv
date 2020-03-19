@@ -6,6 +6,19 @@
 	padding: 10
 	spacing: 10
 
+<MessageLabel@Label>
+	size_hint_y: None
+	size_hint_x: 1/2
+    canvas.before:
+        Color:
+            rgb: 0.5, 0.5, 0.5, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    text_size: self.width, None
+    height: self.texture_size[1]
+
+
 <LoginGridLayout@GridLayout>:
 	rows: 3
 	cols: 2
@@ -308,6 +321,8 @@ ScreenManager:
 							pos: self.pos
 							size: self.size
 					ListGridLayout:
+						row_default_height: '45px'
+						row_force_default: False
 						id: conversation
 
                     BoxLayout:

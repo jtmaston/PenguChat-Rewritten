@@ -15,15 +15,15 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
-
-from queue import Queue
-
-from Crypto.Cipher import AES
-
+from kivy.lang import Builder
 from kivy.uix.popup import Popup
 from kivy.app import App
 from kivy.config import Config
 from kivy.support import install_twisted_reactor
+
+from queue import Queue
+
+from Crypto.Cipher import AES
 from pyDHFixed import DiffieHellman
 
 from Client.DBHandler import *
@@ -129,7 +129,6 @@ class ChatApp(App):
         self.root.current = 'loading_screen'
 
     def send(self):
-
         message_text = self.root.message_content.text
         self.root.message_content.text = ""
         cipher = AES.new(get_common_key(self.destination), AES.MODE_SIV)
@@ -143,6 +142,7 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
         # save_message(packet)  # FIXME: this is a debug setting. When ready for production, uncomment it.
+        self.load_messages(self.destination)
         self.factory.client.transport.write(dumps(packet).encode())
 
     """Helper methods"""
@@ -268,7 +268,8 @@ class ChatApp(App):
 
         names = get_friends(self.username)
         for i in names:
-            a = Button(text=i, on_press=self.show_message_box)
+            a = Button(text=i)
+            a.bind(on_press=self.show_message_box)
             self.root.sidebar.rows += 1
             self.root.sidebar.add_widget(a)
         self.root.request_button.canvas.ask_update()
@@ -293,14 +294,28 @@ class ChatApp(App):
         self.root.request_button.canvas.ask_update()
 
     def load_messages(self, partner):
+        self.root.conversation.clear_widgets()
+        self.root.conversation.rows = 0
+
+        class MessageLabel(Label):
+            pass
+
         messages = get_messages(partner)
         for i in messages:
             cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
             encrypted = pickle.loads(b64decode(i.message_text))
             i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1])
-            item = BoxLayout(orientation='horizontal')
+            text_left = MessageLabel()
+            text_right = MessageLabel()
+            box = BoxLayout(orientation='horizontal')
+            box.add_widget(text_left)
+            box.add_widget(text_right)
             if i.sender == partner:
-                pass
+                text_right.text = ""
+                text_left.text = i.message_text.decode()
+            elif i.sender == self.username:
+                text_left.text = ""
+                text_right.text = i.message_text.decode()
 
     def init_chat_room(self):
         self.hide_message_box()
@@ -309,9 +324,10 @@ class ChatApp(App):
     """Widget methods"""
 
     def show_message_box(self, button_object):
-        self.destination = button_object.text
-        self.load_messages(button_object.text)
-        self.show_widget(self.root.message_box)
+        if button_object.text != self.destination:
+            self.destination = button_object.text
+            self.load_messages(button_object.text)
+            self.show_widget(self.root.message_box)
 
     def hide_message_box(self):
         self.hide_widget(self.root.message_box)

@@ -8,9 +8,9 @@ from kivy import Logger
 from peewee import *
 
 path = getenv('APPDATA')
-path += '\\PenguChat\\DB\\messages.db'
+path += '\\PenguChat\\DB'
 
-db = SqliteDatabase(path)
+db = SqliteDatabase(path + '\\messages.db')
 
 
 class CommonKeys(Model):
