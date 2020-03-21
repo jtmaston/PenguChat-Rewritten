@@ -2,6 +2,7 @@ import builtins
 import os
 import pickle
 import sys
+
 if 'twisted.internet.reactor' in sys.modules:
     del sys.modules['twisted.internet.reactor']
 from os import getenv, environ
@@ -13,18 +14,18 @@ environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
 from base64 import b64encode, b64decode
 from json import dumps, loads
 
-import kivy
+from kivy.resources import resource_add_path
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.label import Label
-from kivy.uix.gridlayout import GridLayout
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
 from kivy.uix.popup import Popup
 from kivy.app import App
 from kivy.config import Config
 from kivy.support import install_twisted_reactor
+from kivy.base import ExceptionHandler, ExceptionManager
 
 from queue import Queue
 
@@ -42,9 +43,10 @@ from twisted.internet.protocol import ClientFactory as Factory
 Commands = Queue()
 
 
-def resourcePath():
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS)
+class E(ExceptionHandler):
+    def handle_exception(self, inst):
+        Logger.exception('Application: An exception was encountered')
+        return ExceptionManager.PASS
 
 
 class CustomBoxLayout(BoxLayout):
@@ -61,6 +63,40 @@ class CustomBoxLayout(BoxLayout):
         self._rectangle.pos = self.pos
 
 
+class SidebarElement:
+    def __init__(self, username):
+        self.container = CustomBoxLayout(orientation='horizontal')
+        self.container.username = username
+        self.name = Label(text=username)
+        self.accept = Button(text='Accept')
+        self.decline = Button(text='Decline')
+
+        self.container.add_widget(self.name)
+        self.container.add_widget(self.accept)
+        self.container.add_widget(self.decline)
+
+
+class ConversationElement:
+
+    def __init__(self, text, side):
+
+        class MessageLabel(Label):
+            pass
+
+        self.line = BoxLayout(orientation='horizontal')
+        self.left = MessageLabel()
+        self.right = MessageLabel()
+        if side == 'l':
+            self.right.text = ""
+            self.left.text = text
+        else:
+            self.right.text = text
+            self.left.text = ""
+
+        self.line.add_widget(self.left)
+        self.line.add_widget(self.right)
+
+
 class ChatApp(App):
     def __init__(self):
         super(ChatApp, self).__init__()
@@ -73,7 +109,9 @@ class ChatApp(App):
         self.server_key = None
         self.failed_login = None
         self.failed_signup = None
-        self.message_lines = []
+        self.sidebar_refs = dict()
+        self.conversation_refs = []
+        self.friend_refs = []
 
     """App loading section"""
 
@@ -219,7 +257,6 @@ class ChatApp(App):
             popup.dismiss()
 
         bar = BoxLayout(orientation='horizontal')
-
         text_box = TextInput(size_hint_x=0.8, write_tab=False, multiline=False)
         text_box.bind(on_text_validate=send_chat_request)
         bar.add_widget(text_box)
@@ -251,6 +288,7 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
         save_message(start_message)
+        del self.sidebar_refs[friend]
         self.set_sidebar_to_flist()
         self.factory.client.transport.write(dumps(packet).encode())
 
@@ -271,6 +309,7 @@ class ChatApp(App):
 
     def deny_request(self, button_object):
         self.root.sidebar.remove_widget(button_object.parent)
+        del self.sidebar_refs[button_object.parent.username]
         delete_request(button_object.parent.username)
 
     """Loading methods"""
@@ -281,11 +320,14 @@ class ChatApp(App):
         self.root.request_button.on_press = self.set_sidebar_to_rlist
 
         names = get_friends(self.username)
+        self.root.sidebar.clear_widgets()
+
         for i in names:
             a = Button(text=i)
             a.bind(on_press=self.show_message_box)
             self.root.sidebar.rows += 1
             self.root.sidebar.add_widget(a)
+            self.friend_refs.append(a)
         self.root.request_button.canvas.ask_update()
 
     def set_sidebar_to_rlist(self):
@@ -295,19 +337,18 @@ class ChatApp(App):
 
         requests = get_requests(self.username)
         for i in requests:
-            box = CustomBoxLayout(orientation='horizontal')
-            box.username = i
-            a = Label(text=i)
-            b = Button(text='Accept', on_press=self.accept_request)
-            c = Button(text='Decline', on_press=self.deny_request)
-            box.add_widget(a)
-            box.add_widget(b)
-            box.add_widget(c)
+            e = SidebarElement(i)
+            e.accept.bind(on_press=self.accept_request)
+            e.decline.bind(on_press=self.deny_request)
+            self.sidebar_refs[i] = e
             self.root.sidebar.rows += 1
-            self.root.sidebar.add_widget(box)
+            self.root.sidebar.add_widget(e.container)
         self.root.request_button.canvas.ask_update()
 
     def load_messages(self, partner):
+        if len(self.conversation_refs) > 0:
+            self.root.conversation.clear_widgets()
+            self.conversation_refs.clear()
 
         messages = get_messages(partner, self.username)
 
@@ -319,38 +360,14 @@ class ChatApp(App):
             except ValueError:
                 Logger.error(f"Application: MAC error on message id {i.id}")
 
-        class ListGridLayout(GridLayout):
-            pass
-
-        class MessageLabel(Label):
-            pass
-
-        conversation = ListGridLayout()
         for i in messages:
-            line = BoxLayout(orientation='horizontal')
             if i.sender == self.username:
-                left = MessageLabel(text="")
-                try:
-                    right = MessageLabel(text=i.message_text)
-                except builtins.ValueError:
-                    continue
+                e = ConversationElement(text=i.message_text, side='r')
             else:
-                try:
-                    left = MessageLabel(text=i.message_text)
-                except builtins.ValueError:
-                    continue
-                right = MessageLabel(text="")
-            line.add_widget(left)
-            line.add_widget(right)
-            conversation.rows += 1
-            conversation.add_widget(line)
-        try:
-            self.root.conversation.add_widget(conversation)
-        except Exception as e:
-            if e:
-                pass
-            self.root.conversation.clear_widgets()
-            self.root.conversation.add_widget(conversation)
+                e = ConversationElement(text=i.message_text, side='l')
+            self.root.conversation.rows += 1
+            self.root.conversation.add_widget(e.line)
+            self.conversation_refs.append(e)
 
     def init_chat_room(self):
         self.hide_message_box()
@@ -360,10 +377,10 @@ class ChatApp(App):
     """Widget methods"""
 
     def show_message_box(self, button_object):
-        if button_object.text != self.destination:
-            self.destination = button_object.text
-            self.load_messages(button_object.text)
+        self.destination = button_object.text
+        if self.check_if_hidden(self.root.message_box):
             self.show_widget(self.root.message_box)
+        self.load_messages(self.destination)
 
     def hide_message_box(self):
         self.hide_widget(self.root.message_box)
@@ -441,5 +458,7 @@ class ClientFactory(Factory):
 
 
 if __name__ == '__main__':
-    kivy.resources.resource_add_path(resourcePath())  # add this line
+    ExceptionManager.add_handler(E())
+    if hasattr(sys, '_MEIPASS'):
+        resource_add_path(os.path.join(sys._MEIPASS))
     ChatApp().run()
