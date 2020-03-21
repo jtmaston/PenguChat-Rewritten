@@ -299,7 +299,8 @@ class ChatApp(App):
 
     def load_messages(self, partner):
 
-        messages = get_messages(partner)
+        messages = get_messages(partner, self.username)
+
         for i in messages:
             cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
             encrypted = pickle.loads(b64decode(i.message_text))
@@ -319,9 +320,15 @@ class ChatApp(App):
             line = BoxLayout(orientation='horizontal')
             if i.sender == self.username:
                 left = MessageLabel(text="")
-                right = MessageLabel(text=i.message_text)
+                try:
+                    right = MessageLabel(text=i.message_text)
+                except builtins.ValueError:
+                    continue
             else:
-                left = MessageLabel(text=i.message_text)
+                try:
+                    left = MessageLabel(text=i.message_text)
+                except builtins.ValueError:
+                    continue
                 right = MessageLabel(text="")
             line.add_widget(left)
             line.add_widget(right)
@@ -338,6 +345,7 @@ class ChatApp(App):
     def init_chat_room(self):
         self.hide_message_box()
         self.set_sidebar_to_flist()
+        self.root.conversation.clear_widgets()
 
     """Widget methods"""
 

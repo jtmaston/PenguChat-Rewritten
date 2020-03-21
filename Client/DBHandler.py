@@ -105,9 +105,11 @@ def get_friends(username):
     )))
 
 
-def get_messages(partner):
-    query = Messages.select().where((Messages.destination == partner) | (Messages.sender == partner)).order_by(
-        Messages.timestamp)
+def get_messages(partner, username):
+    query = Messages.select().where(
+        ((Messages.destination == partner) & (Messages.sender == username)) |
+        ((Messages.sender == partner) & (Messages.destination == username))
+    ).order_by(Messages.timestamp)
     return [i for i in query if i.message_text.decode() != chr(224)]
 
 
