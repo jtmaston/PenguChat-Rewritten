@@ -15,7 +15,6 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
-from kivy.lang import Builder
 from kivy.uix.popup import Popup
 from kivy.app import App
 from kivy.config import Config
@@ -297,25 +296,25 @@ class ChatApp(App):
         self.root.conversation.clear_widgets()
         self.root.conversation.rows = 0
 
-        class MessageLabel(Label):
+        class MessageLine(BoxLayout):
             pass
 
         messages = get_messages(partner)
+        message_list = []
         for i in messages:
             cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
             encrypted = pickle.loads(b64decode(i.message_text))
-            i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1])
-            text_left = MessageLabel()
-            text_right = MessageLabel()
-            box = BoxLayout(orientation='horizontal')
-            box.add_widget(text_left)
-            box.add_widget(text_right)
+            i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
+            box = MessageLine()
             if i.sender == partner:
-                text_right.text = ""
-                text_left.text = i.message_text.decode()
+                box.r.text = ""
+                box.l.text = i.message_text
             elif i.sender == self.username:
-                text_left.text = ""
-                text_right.text = i.message_text.decode()
+                box.l.text = ""
+                box.r.text = i.message_text
+            self.root.conversation.rows += 1
+            self.root.conversation.add_widget(box)
+            message_list.append(box)
 
     def init_chat_room(self):
         self.hide_message_box()

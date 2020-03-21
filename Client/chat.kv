@@ -8,7 +8,7 @@
 
 <MessageLabel@Label>
 	size_hint_y: None
-	size_hint_x: 1/2
+	size_hint_x: 1
     canvas.before:
         Color:
             rgb: 0.5, 0.5, 0.5, 1
@@ -17,6 +17,18 @@
             size: self.size
     text_size: self.width, None
     height: self.texture_size[1]
+
+<MessageLine@ BoxLayout>
+	orientation: 'horizontal'
+	l: text_left.__self__
+	r: text_right.__self__
+
+	MessageLabel:
+		id: text_left
+		text: ''
+	MessageLabel:
+		id: text_right
+		text: ''
 
 
 <LoginGridLayout@GridLayout>:
