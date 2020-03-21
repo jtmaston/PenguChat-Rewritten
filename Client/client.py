@@ -6,25 +6,24 @@ environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
 
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from json import dumps, loads
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.gridlayout import GridLayout
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
+from kivy.uix.popup import Popup
+from kivy.app import App
+from kivy.config import Config
+from kivy.support import install_twisted_reactor
 
 from queue import Queue
 
 from Crypto.Cipher import AES
-
-from kivy.uix.popup import Popup
-from kivy import Logger
-from kivy.app import App
-from kivy.config import Config
-from kivy.support import install_twisted_reactor
 from pyDHFixed import DiffieHellman
 
 from Client.DBHandler import *
@@ -64,6 +63,7 @@ class ChatApp(App):
         self.server_key = None
         self.failed_login = None
         self.failed_signup = None
+        self.message_lines = []
 
     """App loading section"""
 
@@ -130,7 +130,6 @@ class ChatApp(App):
         self.root.current = 'loading_screen'
 
     def send(self):
-
         message_text = self.root.message_content.text
         self.root.message_content.text = ""
         cipher = AES.new(get_common_key(self.destination), AES.MODE_SIV)
@@ -143,6 +142,8 @@ class ChatApp(App):
             'content': content,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
+        save_message(packet)
+        self.load_messages(self.destination)
         self.factory.client.transport.write(dumps(packet).encode())
 
     """Helper methods"""
@@ -189,6 +190,9 @@ class ChatApp(App):
                     self.refresh()
                 elif command['command'] == 'friend_accept':
                     self.accept_request_reply(command)
+                elif command['command'] == 'message':
+                    save_message(command)
+                    self.load_messages(self.destination)
 
     def new_chat(self):
 
@@ -268,7 +272,8 @@ class ChatApp(App):
 
         names = get_friends(self.username)
         for i in names:
-            a = Button(text=i, on_press=self.show_message_box)
+            a = Button(text=i)
+            a.bind(on_press=self.show_message_box)
             self.root.sidebar.rows += 1
             self.root.sidebar.add_widget(a)
         self.root.request_button.canvas.ask_update()
@@ -292,6 +297,44 @@ class ChatApp(App):
             self.root.sidebar.add_widget(box)
         self.root.request_button.canvas.ask_update()
 
+    def load_messages(self, partner):
+
+        messages = get_messages(partner)
+        for i in messages:
+            cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
+            encrypted = pickle.loads(b64decode(i.message_text))
+            try:
+                i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
+            except ValueError:
+                Logger.error(f"Application: MAC error on message id {i.id}")
+
+        class ListGridLayout(GridLayout):
+            pass
+
+        class MessageLabel(Label):
+            pass
+
+        conversation = ListGridLayout()
+        for i in messages:
+            line = BoxLayout(orientation='horizontal')
+            if i.sender == self.username:
+                left = MessageLabel(text="")
+                right = MessageLabel(text=i.message_text)
+            else:
+                left = MessageLabel(text=i.message_text)
+                right = MessageLabel(text="")
+            line.add_widget(left)
+            line.add_widget(right)
+            conversation.rows += 1
+            conversation.add_widget(line)
+        try:
+            self.root.conversation.add_widget(conversation)
+        except Exception as e:
+            if e:
+                pass
+            self.root.conversation.clear_widgets()
+            self.root.conversation.add_widget(conversation)
+
     def init_chat_room(self):
         self.hide_message_box()
         self.set_sidebar_to_flist()
@@ -299,8 +342,10 @@ class ChatApp(App):
     """Widget methods"""
 
     def show_message_box(self, button_object):
-        self.destination = button_object.text
-        self.show_widget(self.root.message_box)
+        if button_object.text != self.destination:
+            self.destination = button_object.text
+            self.load_messages(button_object.text)
+            self.show_widget(self.root.message_box)
 
     def hide_message_box(self):
         self.hide_widget(self.root.message_box)
@@ -349,13 +394,7 @@ class Client(Protocol):
         for i in data:
             if i:
                 packet = loads((i + '}').encode())
-                if packet['sender'] == 'SERVER':
-                    Commands.put(packet)
-                else:
-                    if packet['command'] == 'message':
-                        save_message(packet)
-                    else:
-                        Commands.put(packet)
+                Commands.put(packet)
 
     def connectionLost(self, reason=connectionDone):
         print(reason.value)

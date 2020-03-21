@@ -4,12 +4,13 @@
 from datetime import datetime
 from os import getenv, makedirs
 
+from kivy import Logger
 from peewee import *
 
 path = getenv('APPDATA')
-path += '\\PenguChat\\DB\\messages.db'
+path += '\\PenguChat\\DB'
 
-db = SqliteDatabase(path)
+db = SqliteDatabase(path + '\\messages.db')
 
 
 class CommonKeys(Model):
@@ -86,7 +87,7 @@ def get_private_key(partner_name):
     try:
         key = PrivateKeys.get(PrivateKeys.partner_name == partner_name)
     except PrivateKeys.DoesNotExist:
-        return False
+        Logger.error("DBHandler: Key not found for user!")
     else:
         return int(key.self_private_key.decode())
 
@@ -102,6 +103,12 @@ def get_friends(username):
             [i.sender for i in query if i.sender != username] +
             [i.destination for i in query if i.destination != username]
     )))
+
+
+def get_messages(partner):
+    query = Messages.select().where((Messages.destination == partner) | (Messages.sender == partner)).order_by(
+        Messages.timestamp)
+    return [i for i in query if i.message_text.decode() != chr(224)]
 
 
 def save_message(packet):
@@ -145,7 +152,7 @@ def get_requests(username):
 try:
     db.create_tables([CommonKeys, Messages, PrivateKeys, Requests])
 except OperationalError as t:
-    print(t)
+    Logger.warning("DBHandler: Creating database file.")
     try:
         makedirs(path)
     except FileExistsError:
