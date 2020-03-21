@@ -1,5 +1,9 @@
 import builtins
+import os
 import pickle
+import sys
+if 'twisted.internet.reactor' in sys.modules:
+    del sys.modules['twisted.internet.reactor']
 from os import getenv, environ
 
 environ['KIVY_NO_ENV_CONFIG'] = '1'
@@ -9,6 +13,7 @@ environ["KCFG_KIVY_LOG_DIR"] = getenv('APPDATA') + '\\PenguChat\\Logs'
 from base64 import b64encode, b64decode
 from json import dumps, loads
 
+import kivy
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
@@ -26,7 +31,7 @@ from queue import Queue
 from Crypto.Cipher import AES
 from pyDHFixed import DiffieHellman
 
-from Client.DBHandler import *
+from DBHandler import *
 
 install_twisted_reactor()
 
@@ -35,6 +40,11 @@ from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 
 Commands = Queue()
+
+
+def resourcePath():
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS)
 
 
 class CustomBoxLayout(BoxLayout):
@@ -431,4 +441,5 @@ class ClientFactory(Factory):
 
 
 if __name__ == '__main__':
+    kivy.resources.resource_add_path(resourcePath())  # add this line
     ChatApp().run()
