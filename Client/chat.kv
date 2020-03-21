@@ -18,19 +18,6 @@
     text_size: self.width, None
     height: self.texture_size[1]
 
-<MessageLine@ BoxLayout>
-	orientation: 'horizontal'
-	l: text_left.__self__
-	r: text_right.__self__
-
-	MessageLabel:
-		id: text_left
-		text: ''
-	MessageLabel:
-		id: text_right
-		text: ''
-
-
 <LoginGridLayout@GridLayout>:
 	rows: 3
 	cols: 2
@@ -39,7 +26,6 @@
 	row_force_default: True
 
 <ListGridLayout@GridLayout>:
-    id: scroller
     size_hint_y: None
     height: self.minimum_height
     cols: 1
@@ -332,9 +318,7 @@ ScreenManager:
 							source:"assets/large-wallpaper.jpg"
 							pos: self.pos
 							size: self.size
-					ListGridLayout:
-						row_default_height: '45px'
-						row_force_default: False
+					ScrollView:
 						id: conversation
 
                     BoxLayout:

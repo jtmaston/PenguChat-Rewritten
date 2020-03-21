@@ -13,6 +13,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.gridlayout import GridLayout
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
 from kivy.uix.popup import Popup
@@ -62,6 +63,7 @@ class ChatApp(App):
         self.server_key = None
         self.failed_login = None
         self.failed_signup = None
+        self.message_lines = []
 
     """App loading section"""
 
@@ -140,7 +142,7 @@ class ChatApp(App):
             'content': content,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
-        # save_message(packet)  # FIXME: this is a debug setting. When ready for production, uncomment it.
+        save_message(packet)
         self.load_messages(self.destination)
         self.factory.client.transport.write(dumps(packet).encode())
 
@@ -188,6 +190,9 @@ class ChatApp(App):
                     self.refresh()
                 elif command['command'] == 'friend_accept':
                     self.accept_request_reply(command)
+                elif command['command'] == 'message':
+                    save_message(command)
+                    self.load_messages(self.destination)
 
     def new_chat(self):
 
@@ -293,28 +298,42 @@ class ChatApp(App):
         self.root.request_button.canvas.ask_update()
 
     def load_messages(self, partner):
-        self.root.conversation.clear_widgets()
-        self.root.conversation.rows = 0
-
-        class MessageLine(BoxLayout):
-            pass
 
         messages = get_messages(partner)
-        message_list = []
         for i in messages:
             cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
             encrypted = pickle.loads(b64decode(i.message_text))
-            i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
-            box = MessageLine()
-            if i.sender == partner:
-                box.r.text = ""
-                box.l.text = i.message_text
-            elif i.sender == self.username:
-                box.l.text = ""
-                box.r.text = i.message_text
-            self.root.conversation.rows += 1
-            self.root.conversation.add_widget(box)
-            message_list.append(box)
+            try:
+                i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
+            except ValueError:
+                Logger.error(f"Application: MAC error on message id {i.id}")
+
+        class ListGridLayout(GridLayout):
+            pass
+
+        class MessageLabel(Label):
+            pass
+
+        conversation = ListGridLayout()
+        for i in messages:
+            line = BoxLayout(orientation='horizontal')
+            if i.sender == self.username:
+                left = MessageLabel(text="")
+                right = MessageLabel(text=i.message_text)
+            else:
+                left = MessageLabel(text=i.message_text)
+                right = MessageLabel(text="")
+            line.add_widget(left)
+            line.add_widget(right)
+            conversation.rows += 1
+            conversation.add_widget(line)
+        try:
+            self.root.conversation.add_widget(conversation)
+        except Exception as e:
+            if e:
+                pass
+            self.root.conversation.clear_widgets()
+            self.root.conversation.add_widget(conversation)
 
     def init_chat_room(self):
         self.hide_message_box()
@@ -375,13 +394,7 @@ class Client(Protocol):
         for i in data:
             if i:
                 packet = loads((i + '}').encode())
-                if packet['sender'] == 'SERVER':
-                    Commands.put(packet)
-                else:
-                    if packet['command'] == 'message':
-                        save_message(packet)
-                    else:
-                        Commands.put(packet)
+                Commands.put(packet)
 
     def connectionLost(self, reason=connectionDone):
         print(reason.value)
