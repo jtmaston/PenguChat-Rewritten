@@ -1,11 +1,12 @@
 # TODO: The database handler needs a redesign
 
 from datetime import datetime
+from os import makedirs
 
 import bcrypt
 from peewee import *
-
-db = SqliteDatabase('D:/pc.db')
+path = "F:/"
+db = SqliteDatabase(path + 'pc.db')
 
 
 class User(Model):
@@ -93,3 +94,16 @@ def get_salt_for_user(username):
         return False
     else:
         return query.password_salt.encode()
+
+try:
+    db.create_tables([User, MessageCache])
+except OperationalError as t:
+    try:
+        makedirs(path)
+    except FileExistsError:
+        pass
+    try:
+        open(path)
+    except FileNotFoundError:
+        with open(path):
+            pass

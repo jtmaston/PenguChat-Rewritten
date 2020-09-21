@@ -2,7 +2,7 @@ import json
 from base64 import b64decode
 
 from Crypto.Cipher import AES
-from pyDHFixed import DiffieHellman
+from pyDH import DiffieHellman
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory, connectionDone
 

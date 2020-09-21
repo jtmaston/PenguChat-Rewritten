@@ -7,10 +7,11 @@ from os import getenv, makedirs
 from kivy import Logger
 from peewee import *
 
-path = getenv('APPDATA')
-path += '\\PenguChat\\DB'
+# path = getenv('APPDATA') + '\\PenguChat\\DB'
+path = "F:/"
 
-db = SqliteDatabase(path + '\\messages.db')
+
+db = SqliteDatabase(path + 'messages.db')
 
 
 class CommonKeys(Model):
