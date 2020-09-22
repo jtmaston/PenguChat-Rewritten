@@ -3,15 +3,10 @@ import os
 import pickle
 import sys
 
+from Client.DBHandler import *
 
 if 'twisted.internet.reactor' in sys.modules:
     del sys.modules['twisted.internet.reactor']
-from os import environ
-from Client.DBHandler import *
-
-environ['KIVY_NO_ENV_CONFIG'] = '1'
-environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
-environ["KCFG_KIVY_LOG_DIR"] = path + '\\PenguChat\\Logs'
 
 from base64 import b64encode, b64decode
 from json import dumps, loads
@@ -33,8 +28,6 @@ from queue import Queue
 
 from Crypto.Cipher import AES
 from pyDH import DiffieHellman
-
-from Client.DBHandler import *
 
 install_twisted_reactor()
 

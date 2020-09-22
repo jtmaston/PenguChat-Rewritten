@@ -2,14 +2,20 @@
 
 
 from datetime import datetime
-from os import getenv, makedirs
+from os import getenv, makedirs, environ
 
-from kivy import Logger
+
 from peewee import *
 
 # path = getenv('APPDATA') + '\\PenguChat\\DB'
 path = "F:/"
 
+environ['KIVY_NO_ENV_CONFIG'] = '1'
+environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
+environ["KCFG_KIVY_LOG_DIR"] = path + '\\PenguChat\\Logs'
+
+
+from kivy import Logger
 
 db = SqliteDatabase(path + 'messages.db')
 
