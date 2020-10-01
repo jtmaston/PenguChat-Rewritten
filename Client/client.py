@@ -288,7 +288,8 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(packet).encode())
 
     def accept_request_reply(self, packet):
-        private = DiffieHellman(a=get_private_key(packet['sender']))
+        private = DiffieHellman()
+        private.__a = get_private_key(packet['sender'])  # quick 'n dirty fix
         common = private.gen_shared_key(int(packet['content']))
         add_common_key(packet['sender'], common)
         delete_private_key(packet['sender'])
