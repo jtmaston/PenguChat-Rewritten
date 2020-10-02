@@ -1,17 +1,11 @@
 import builtins
-import os
 import pickle
 import sys
 
 from Client.DBHandler import *
-
-if 'twisted.internet.reactor' in sys.modules:
-    del sys.modules['twisted.internet.reactor']
-
 from base64 import b64encode, b64decode
 from json import dumps, loads
 
-from kivy.resources import resource_add_path
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
@@ -29,6 +23,8 @@ from queue import Queue
 from Crypto.Cipher import AES
 from pyDH import DiffieHellman
 
+if 'twisted.internet.reactor' in sys.modules:
+    del sys.modules['twisted.internet.reactor']
 install_twisted_reactor()
 
 from twisted.internet import reactor, task
@@ -194,9 +190,9 @@ class ChatApp(App):
     def refresh(self):
         try:
             if self.root.request_button.text[0] == 'F':
-                self.set_sidebar_to_rlist()
+                self.set_sidebar_to_request_list()
             elif self.root.request_button.text[0] == 'R':
-                self.set_sidebar_to_flist()
+                self.set_sidebar_to_friend_list()
         except builtins.IndexError:
             pass
 
@@ -284,7 +280,7 @@ class ChatApp(App):
         }
         save_message(start_message)
         del self.sidebar_refs[friend]
-        self.set_sidebar_to_flist()
+        self.set_sidebar_to_friend_list()
         self.factory.client.transport.write(dumps(packet).encode())
 
     def accept_request_reply(self, packet):
@@ -301,7 +297,7 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
         save_message(start_message)
-        self.set_sidebar_to_flist()
+        self.set_sidebar_to_friend_list()
 
     def deny_request(self, button_object):
         self.root.sidebar.remove_widget(button_object.parent)
@@ -310,10 +306,10 @@ class ChatApp(App):
 
     """Loading methods"""
 
-    def set_sidebar_to_flist(self):
+    def set_sidebar_to_friend_list(self):
         self.root.sidebar.clear_widgets()
         self.root.request_button.text = f"Requests ({len(get_requests(self.username))})"
-        self.root.request_button.on_press = self.set_sidebar_to_rlist
+        self.root.request_button.on_press = self.set_sidebar_to_request_list
 
         names = get_friends(self.username)
         self.root.sidebar.clear_widgets()
@@ -326,10 +322,10 @@ class ChatApp(App):
             self.friend_refs.append(a)
         self.root.request_button.canvas.ask_update()
 
-    def set_sidebar_to_rlist(self):
+    def set_sidebar_to_request_list(self):
         self.root.sidebar.clear_widgets()
         self.root.request_button.text = "Friends"
-        self.root.request_button.on_press = self.set_sidebar_to_flist
+        self.root.request_button.on_press = self.set_sidebar_to_friend_list
 
         requests = get_requests(self.username)
         for i in requests:
@@ -367,7 +363,7 @@ class ChatApp(App):
 
     def init_chat_room(self):
         self.hide_message_box()
-        self.set_sidebar_to_flist()
+        self.set_sidebar_to_friend_list()
         self.root.conversation.clear_widgets()
 
     """Widget methods"""
@@ -455,6 +451,14 @@ class ClientFactory(Factory):
 
 if __name__ == '__main__':
     ExceptionManager.add_handler(E())
+
+    """
+    USED FOR BUILDING OF STANDALONE WINDOWS APP
+    
+    import os
+    from kivy.resources import resource_add_path
+    
     if hasattr(sys, '_MEIPASS'):
-        resource_add_path(os.path.join(sys._MEIPASS))
+        resource_add_path(os.path.join(sys._MEIPASS))"""
+
     ChatApp().run()

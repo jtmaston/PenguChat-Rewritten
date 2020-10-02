@@ -17,6 +17,7 @@ class Server(Protocol):
     def __init__(self, factory):
         self.factory = factory
         self.endpoint_username = None
+        self.key = None
 
     def connectionMade(self):
         pass
