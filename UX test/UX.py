@@ -67,7 +67,6 @@ class UXApp(App):
                 i.pos[0] = self.layout.size[0] - i.size[0]
                 i.padding_x = -20
 
-
             i.body.pos = i.pos
 
 
