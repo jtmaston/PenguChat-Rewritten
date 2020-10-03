@@ -171,7 +171,7 @@ class ChatApp(App):
     def send(self):
         message_text = self.root.message_content.text
         self.root.message_content.text = ""
-        cipher = AES.new(get_common_key(self.destination), AES.MODE_SIV)
+        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
         content = pickle.dumps(cipher.encrypt_and_digest(message_text.encode()))
         content = b64encode(content).decode()
         packet = {
@@ -181,7 +181,7 @@ class ChatApp(App):
             'content': content,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
-        save_message(packet)
+        save_message(packet, self.username)
         self.load_messages(self.destination)
         self.factory.client.transport.write(dumps(packet).encode())
 
@@ -212,7 +212,9 @@ class ChatApp(App):
                 elif command['command'] == '202':
                     self.secure()
                 elif command['command'] == 'friend_key':
-                    add_common_key(command['friend'], self.private.gen_shared_key(command['content']))
+                    add_common_key(command['friend'],
+                                   self.private.gen_shared_key(command['content']),
+                                   self.username)
                 elif command['command'] == '406':
                     self.root.username_fail.text = ""
                     self.root.passwd_fail.text = ""
@@ -230,13 +232,13 @@ class ChatApp(App):
                 elif command['command'] == 'friend_accept':
                     self.accept_request_reply(command)
                 elif command['command'] == 'message':
-                    save_message(command)
+                    save_message(command, self.username)
                     self.load_messages(self.destination)
 
     def new_chat(self):
 
         def send_chat_request(text_object):  # save the private key to be used later
-            add_private_key(text_object.text, self.private.get_private_key())
+            add_private_key(text_object.text, self.private.get_private_key(), self.username)
             packet = {
                 'sender': self.username,
                 'command': 'friend_request',
@@ -261,7 +263,7 @@ class ChatApp(App):
         friend = button_object.parent.username
         friend_key = int(get_key_for_request(self.username, friend).decode())
         common_key = self.private.gen_shared_key(friend_key)
-        add_common_key(friend, common_key)
+        add_common_key(friend, common_key, self.username)
         self.root.sidebar.remove_widget(button_object.parent)
         delete_request(friend)
         packet = {
@@ -278,17 +280,17 @@ class ChatApp(App):
             'content': chr(224),
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
-        save_message(start_message)
+        save_message(start_message, self.username)
         del self.sidebar_refs[friend]
         self.set_sidebar_to_friend_list()
         self.factory.client.transport.write(dumps(packet).encode())
 
     def accept_request_reply(self, packet):
         private = DiffieHellman()
-        private.__a = get_private_key(packet['sender'])  # quick 'n dirty fix
+        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix
         common = private.gen_shared_key(int(packet['content']))
-        add_common_key(packet['sender'], common)
-        delete_private_key(packet['sender'])
+        add_common_key(packet['sender'], common, self.username)
+        delete_private_key(packet['sender'], self.username)
         start_message = {
             'sender': packet['sender'],
             'destination': self.username,
@@ -296,7 +298,7 @@ class ChatApp(App):
             'content': chr(224),
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
-        save_message(start_message)
+        save_message(start_message, self.username)
         self.set_sidebar_to_friend_list()
 
     def deny_request(self, button_object):
@@ -344,19 +346,20 @@ class ChatApp(App):
 
         messages = get_messages(partner, self.username)
 
-        for i in messages:
-            cipher = AES.new(get_common_key(partner), AES.MODE_SIV)
-            encrypted = pickle.loads(b64decode(i.message_text))
+        for i in messages:  # decryption phase
+            cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
+            encrypted = pickle.loads(b64decode(i.message_data))
             try:
-                i.message_text = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
+                i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
                 Logger.error(f"Application: MAC error on message id {i.id}")
+                i.message_data = "[Message decryption failed.]"
 
         for i in messages:
             if i.sender == self.username:
-                e = ConversationElement(text=i.message_text, side='r')
+                e = ConversationElement(text=i.message_data, side='r')
             else:
-                e = ConversationElement(text=i.message_text, side='l')
+                e = ConversationElement(text=i.message_data, side='l')
             self.root.conversation.rows += 1
             self.root.conversation.add_widget(e.line)
             self.conversation_refs.append(e)
@@ -416,7 +419,7 @@ class Client(Protocol):
         Commands.put({'command': "202"})
 
     def dataReceived(self, data):
-        print(data)
+        # print(data)
         data = data.decode().split('}')
         for i in data:
             if i:
