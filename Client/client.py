@@ -1,27 +1,26 @@
 import builtins
 import pickle
 import sys
-
-from Client.DBHandler import *
 from base64 import b64encode, b64decode
 from json import dumps, loads
-
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.graphics.context_instructions import Color
-from kivy.graphics.vertex_instructions import Rectangle
-from kivy.uix.popup import Popup
-from kivy.app import App
-from kivy.config import Config
-from kivy.support import install_twisted_reactor
-from kivy.base import ExceptionHandler, ExceptionManager
-
 from queue import Queue
 
 from Crypto.Cipher import AES
+from kivy.app import App
+from kivy.base import ExceptionHandler, ExceptionManager
+from kivy.config import Config
+from kivy.graphics.context_instructions import Color
+from kivy.graphics.vertex_instructions import Rectangle
+from kivy.support import install_twisted_reactor
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
+from kivy.uix.textinput import TextInput
+from kivy.uix.widget import Widget
 from pyDH import DiffieHellman
+
+from Client.DBHandler import *
 
 if 'twisted.internet.reactor' in sys.modules:
     del sys.modules['twisted.internet.reactor']
@@ -67,25 +66,45 @@ class SidebarElement:
         self.container.add_widget(self.decline)
 
 
+class MessageLabel(Label):
+    test = None
+
+    def __init__(self, **kwargs):
+        super(MessageLabel, self).__init__(**kwargs)
+
+    def yeet(self):
+        print(self.test)
+
+
+class EmptyWidget(Widget):
+
+    def texture_update(self):
+        pass
+
+    def resize_background(self):
+        pass
+
+
 class ConversationElement:
 
     def __init__(self, text, side):
 
-        class MessageLabel(Label):
-            pass
-
         self.line = BoxLayout(orientation='horizontal')
-        self.left = MessageLabel()
-        self.right = MessageLabel()
+        self.left = None
+        self.right = None
+
         if side == 'l':
-            self.right.text = ""
-            self.left.text = text
+            self.left = MessageLabel(text=text)
+            self.right = EmptyWidget()
         else:
-            self.right.text = text
-            self.left.text = ""
+            self.right = MessageLabel(text=text)
+            self.left = EmptyWidget()
 
         self.line.add_widget(self.left)
         self.line.add_widget(self.right)
+
+        self.left.texture_update()
+        self.right.texture_update()
 
 
 class ChatApp(App):
@@ -362,6 +381,7 @@ class ChatApp(App):
                 e = ConversationElement(text=i.message_data, side='l')
             self.root.conversation.rows += 1
             self.root.conversation.add_widget(e.line)
+
             self.conversation_refs.append(e)
 
     def init_chat_room(self):
