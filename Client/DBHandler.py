@@ -2,16 +2,18 @@
 
 
 from datetime import datetime
-from os import makedirs, environ
+from os import makedirs, environ, getenv
 
 from peewee import *
 
-# path = getenv('APPDATA') + '\\PenguChat\\DB'
-path = "F:/"
+#path = getenv('APPDATA') + '\\PenguChat\\DB'
+path = "/Users/alex/Library/Application Support"
+
+# print(path)
 
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
-environ["KCFG_KIVY_LOG_DIR"] = path + '\\PenguChat\\Logs'
+environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
 
 from kivy import Logger
 

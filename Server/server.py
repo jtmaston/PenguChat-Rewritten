@@ -32,7 +32,14 @@ class Server(Protocol):
 
     def dataReceived(self, data):
         print(data)
-        packet = json.loads(data)
+        try:
+            packet = json.loads(data)
+        except Exception as e:
+            self.transport.loseConnection()
+
+        packet = dict()
+        packet['command'] = None
+
         if packet['command'] == 'secure':
             private = DiffieHellman()
             public = private.gen_public_key()

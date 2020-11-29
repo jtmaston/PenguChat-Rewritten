@@ -130,7 +130,7 @@ class ChatApp(App):
         self.root.current = 'loading_screen'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
-        reactor.connectTCP("localhost", 8123, self.factory)
+        reactor.connectTCP("berrybox.local", 8123, self.factory)
 
     """Server handshake, establish E2E tunnel for password exchange"""
 
