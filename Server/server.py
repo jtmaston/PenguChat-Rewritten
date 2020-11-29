@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import json
 from base64 import b64decode
 
@@ -6,7 +8,7 @@ from pyDH import DiffieHellman
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory, connectionDone
 
-from Server.DBHandler import *
+from DBHandler import *
 
 
 def get_transportable_data(packet):

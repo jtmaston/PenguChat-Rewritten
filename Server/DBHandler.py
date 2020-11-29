@@ -5,7 +5,7 @@ from os import makedirs
 
 import bcrypt
 from peewee import *
-path = "F:/"
+path = "/home/pi/Server/"
 db = SqliteDatabase(path + 'pc.db')
 
 
