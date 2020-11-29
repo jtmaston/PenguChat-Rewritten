@@ -39,10 +39,6 @@ class Server(Protocol):
             self.transport.loseConnection()
             return
 
-        if type(packet) != 'dict':
-            self.transport.loseConnection()
-            return
-
         if packet['command'] == 'secure':
             private = DiffieHellman()
             public = private.gen_public_key()
