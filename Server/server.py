@@ -37,13 +37,16 @@ class Server(Protocol):
             packet = json.loads(data)
         except Exception as e:
             self.transport.abortConnection()
+            return
 
         if type(packet) != 'dict':
             self.transport.abortConnection()
+            return
 
-        if self.key is None:
+        if self.key is None and packet is not None:
             if packet['command'] != 'secure':
                 self.transport.abortConnection()
+                return
 
         if packet['command'] == 'secure':
             private = DiffieHellman()
