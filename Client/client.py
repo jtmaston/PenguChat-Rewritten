@@ -147,11 +147,11 @@ class ChatApp(App):
 
     def send_login_data(self):
         if not self.failed_login:
-            pwd = self.root.loginPass.text
-            self.username = self.root.loginUsr.text
+            pwd = self.root.ids.loginPass.text
+            self.username = self.root.ids.loginUsr.text
         else:
-            pwd = self.root.loginPass_failed.text
-            self.username = self.root.loginUsr_failed.text
+            pwd = self.root.ids.loginPass_failed.text
+            self.username = self.root.ids.loginUsr_failed.text
         try:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
         except AttributeError:
@@ -168,9 +168,9 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(login_packet).encode())
 
     def send_sign_up_data(self):
-        pwd = self.root.passwd.text
-        pwd_r = self.root.passwd_r.text
-        self.username = self.root.username.text
+        pwd = self.root.ids.passwd.text
+        pwd_r = self.root.ids.passwd_r.text
+        self.username = self.root.ids.username.text
         if pwd == pwd_r:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
             encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
@@ -188,8 +188,8 @@ class ChatApp(App):
         self.root.current = 'loading_screen'
 
     def send(self):
-        message_text = self.root.message_content.text
-        self.root.message_content.text = ""
+        message_text = self.root.ids.message_content.text
+        self.root.ids.message_content.text = ""
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
         content = pickle.dumps(cipher.encrypt_and_digest(message_text.encode()))
         content = b64encode(content).decode()
@@ -208,9 +208,9 @@ class ChatApp(App):
 
     def refresh(self):
         try:
-            if self.root.request_button.text[0] == 'F':
+            if self.root.ids.request_button.text[0] == 'F':
                 self.set_sidebar_to_request_list()
-            elif self.root.request_button.text[0] == 'R':
+            elif self.root.ids.request_button.text[0] == 'R':
                 self.set_sidebar_to_friend_list()
         except builtins.IndexError:
             pass
@@ -235,15 +235,15 @@ class ChatApp(App):
                                    self.private.gen_shared_key(command['content']),
                                    self.username)
                 elif command['command'] == '406':
-                    self.root.username_fail.text = ""
-                    self.root.passwd_fail.text = ""
-                    self.root.passwd_r_fail.text = ""
+                    self.root.ids.username_fail.text = ""
+                    self.root.ids.passwd_fail.text = ""
+                    self.root.ids.passwd_r_fail.text = ""
                     self.root.current = 'signup_fail'
                     self.failed_signup = True
                 elif command['command'] == '401':
                     self.root.current = 'login_failed'
-                    self.root.loginPass_failed.text = ""
-                    self.root.loginUsr_failed.text = ""
+                    self.root.ids.loginPass_failed.text = ""
+                    self.root.ids.loginUsr_failed.text = ""
                     self.failed_login = True
                 elif command['command'] == 'friend_request':
                     add_request(command)
@@ -283,7 +283,7 @@ class ChatApp(App):
         friend_key = int(get_key_for_request(self.username, friend).decode())
         common_key = self.private.gen_shared_key(friend_key)
         add_common_key(friend, common_key, self.username)
-        self.root.sidebar.remove_widget(button_object.parent)
+        self.root.ids.sidebar.remove_widget(button_object.parent)
         delete_request(friend)
         packet = {
             'sender': self.username,
@@ -321,32 +321,32 @@ class ChatApp(App):
         self.set_sidebar_to_friend_list()
 
     def deny_request(self, button_object):
-        self.root.sidebar.remove_widget(button_object.parent)
+        self.root.ids.sidebar.remove_widget(button_object.parent)
         del self.sidebar_refs[button_object.parent.username]
         delete_request(button_object.parent.username)
 
     """Loading methods"""
 
     def set_sidebar_to_friend_list(self):
-        self.root.sidebar.clear_widgets()
-        self.root.request_button.text = f"Requests ({len(get_requests(self.username))})"
-        self.root.request_button.on_press = self.set_sidebar_to_request_list
+        self.root.ids.sidebar.clear_widgets()
+        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
+        self.root.ids.request_button.on_press = self.set_sidebar_to_request_list
 
         names = get_friends(self.username)
-        self.root.sidebar.clear_widgets()
+        self.root.ids.sidebar.clear_widgets()
 
         for i in names:
             a = Button(text=i)
             a.bind(on_press=self.show_message_box)
-            self.root.sidebar.rows += 1
-            self.root.sidebar.add_widget(a)
+            self.root.ids.sidebar.rows += 1
+            self.root.ids.sidebar.add_widget(a)
             self.friend_refs.append(a)
-        self.root.request_button.canvas.ask_update()
+        self.root.ids.request_button.canvas.ask_update()
 
     def set_sidebar_to_request_list(self):
-        self.root.sidebar.clear_widgets()
-        self.root.request_button.text = "Friends"
-        self.root.request_button.on_press = self.set_sidebar_to_friend_list
+        self.root.ids.sidebar.clear_widgets()
+        self.root.ids.request_button.text = "Friends"
+        self.root.ids.request_button.on_press = self.set_sidebar_to_friend_list
 
         requests = get_requests(self.username)
         for i in requests:
@@ -354,13 +354,13 @@ class ChatApp(App):
             e.accept.bind(on_press=self.accept_request)
             e.decline.bind(on_press=self.deny_request)
             self.sidebar_refs[i] = e
-            self.root.sidebar.rows += 1
-            self.root.sidebar.add_widget(e.container)
-        self.root.request_button.canvas.ask_update()
+            self.root.ids.sidebar.rows += 1
+            self.root.ids.sidebar.add_widget(e.container)
+        self.root.ids.request_button.canvas.ask_update()
 
     def load_messages(self, partner):
         if len(self.conversation_refs) > 0:
-            self.root.conversation.clear_widgets()
+            self.root.ids.conversation.clear_widgets()
             self.conversation_refs.clear()
 
         messages = get_messages(partner, self.username)
@@ -379,26 +379,26 @@ class ChatApp(App):
                 e = ConversationElement(text=i.message_data, side='r')
             else:
                 e = ConversationElement(text=i.message_data, side='l')
-            self.root.conversation.rows += 1
-            self.root.conversation.add_widget(e.line)
+            self.root.ids.conversation.rows += 1
+            self.root.ids.conversation.add_widget(e.line)
 
             self.conversation_refs.append(e)
 
     def init_chat_room(self):
         self.hide_message_box()
         self.set_sidebar_to_friend_list()
-        self.root.conversation.clear_widgets()
+        self.root.ids.conversation.clear_widgets()
 
     """Widget methods"""
 
     def show_message_box(self, button_object):
         self.destination = button_object.text
-        if self.check_if_hidden(self.root.message_box):
-            self.show_widget(self.root.message_box)
+        if self.check_if_hidden(self.root.ids.message_box):
+            self.show_widget(self.root.ids.message_box)
         self.load_messages(self.destination)
 
     def hide_message_box(self):
-        self.hide_widget(self.root.message_box)
+        self.hide_widget(self.root.ids.message_box)
 
     """Static methods"""
 

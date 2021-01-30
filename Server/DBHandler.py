@@ -4,9 +4,11 @@ from datetime import datetime
 from os import makedirs
 
 import bcrypt
+from appdirs import user_data_dir
 from peewee import *
-path = "/home/pi/Server/"
-db = SqliteDatabase(path + 'pc.db')
+
+path = user_data_dir("PenguChatServer", "aanas")
+db = SqliteDatabase(path + '/Users.db')
 
 
 class User(Model):
@@ -66,7 +68,7 @@ def login(username, password):
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:
-        print("notfound")
+        print("User not found!")
         return False
     else:
         salt = get_salt_for_user(username)
@@ -95,6 +97,7 @@ def get_salt_for_user(username):
     else:
         return query.password_salt.encode()
 
+
 try:
     db.create_tables([User, MessageCache])
 except OperationalError as t:
@@ -103,7 +106,7 @@ except OperationalError as t:
     except FileExistsError:
         pass
     try:
-        open(path)
+        open(path + '/Users.db')
     except FileNotFoundError:
-        with open(path):
+        with open(path + '/Users.db'):
             pass

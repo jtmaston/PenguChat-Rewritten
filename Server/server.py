@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+# TODO: Implement proper logging
+
 import json
 from base64 import b64decode
 
@@ -32,10 +34,10 @@ class Server(Protocol):
 
     def dataReceived(self, data):
         print(data)
-        packet = None
         try:
             packet = json.loads(data)
         except Exception as e:
+            print(f"Tried loading, failed! Reason: {e}")
             self.transport.loseConnection()
             return
 

@@ -1,15 +1,12 @@
 # TODO: The database handler needs a redesign
-
-
+import sys
 from datetime import datetime
-from os import makedirs, environ, getenv
+from os import makedirs, environ
 
+from appdirs import user_data_dir
 from peewee import *
 
-#path = getenv('APPDATA') + '\\PenguChat\\DB'
-path = "/Users/alex/Library/Application Support"
-
-# print(path)
+path = user_data_dir("PenguChat")
 
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"

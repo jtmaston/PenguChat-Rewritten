@@ -1,5 +1,7 @@
-pyDH>=0.1.5
-Twisted>=20.3.0
-peewee>=3.13.3
-bcrypt>=3.2.0
-Kivy>=1.11.1
+pyDH
+Twisted
+peewee
+bcrypt
+kivy[base]
+pycryptodome
+appdirs

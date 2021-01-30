@@ -39,7 +39,6 @@
     row_default_height: '100dp'
     row_force_default: True
     spacing: 0, 5
-    orientation: 'vertical'
 
 <Label>:
 	font_size: 25
@@ -92,23 +91,6 @@
 
 ScreenManager:
 	transition: RiseInTransition()
-
-	request_button: request_button.__self__
-	sidebar: sidebar.__self__
-	message_box: message_box.__self__
-	passwd: passwd.__self__
-	passwd_r: passwd_r.__self__
-	passwd_fail: passwd_fail.__self__
-	passwd_r_fail: passwd_r_fail.__self__
-	loginPass: loginPass.__self__
-	loginUsr: loginUsr.__self__
-	loginPass_failed: loginPass_failed.__self__
-	loginUsr_failed: loginUsr_failed.__self__
-	username: username.__self__
-	username_fail: username_fail.__self__
-	message_content:  message_content.__self__
-	conversation: conversation.__self__
-
 	LoginScreen:
 	    name:'loading_screen'
 	    Image:
