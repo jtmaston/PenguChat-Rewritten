@@ -1,9 +1,10 @@
 import builtins
 import pickle
-import sys
 from base64 import b64encode, b64decode
 from json import dumps, loads
 from queue import Queue
+
+# note: hide. the. damned. logs.
 
 from Crypto.Cipher import AES
 from kivy.app import App
@@ -11,9 +12,11 @@ from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.config import Config
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
+from kivy.properties import ObjectProperty
 from kivy.support import install_twisted_reactor
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
@@ -72,7 +75,7 @@ class MessageLabel(Label):
     def __init__(self, **kwargs):
         super(MessageLabel, self).__init__(**kwargs)
 
-    def yeet(self):
+    def yeet(self):         # NOTE: WHAT DOES THIS DO? THERE'S NO TEST ATTRIBUTE
         print(self.test)
 
 
@@ -107,7 +110,14 @@ class ConversationElement:
         self.right.texture_update()
 
 
+class FileDialog(FloatLayout):
+    load = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+
+
 class ChatApp(App):
+    _popup: Popup
+
     def __init__(self):
         super(ChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
@@ -130,7 +140,7 @@ class ChatApp(App):
         self.root.current = 'loading_screen'
         task.LoopingCall(self.poll_commands).start(0.5)
         self.factory = ClientFactory()
-        reactor.connectTCP("berrybox.local", 8123, self.factory)
+        reactor.connectTCP("localhost", 8123, self.factory)
 
     """Server handshake, establish E2E tunnel for password exchange"""
 
@@ -201,8 +211,33 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         }
         save_message(packet, self.username)
-        self.load_messages(self.destination)
         self.factory.client.transport.write(dumps(packet).encode())
+        self.load_messages(self.destination)
+
+    def send_file(self, stream):
+        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
+        content = pickle.dumps(cipher.encrypt_and_digest(stream))
+        content = b64encode(content).decode()
+
+        packet = {
+            'sender': self.username,
+            'destination': self.destination,
+            'command': 'file',
+            'content': content,
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        }
+        save_message(packet, self.username)
+        self.factory.client.transport.write(dumps(packet).encode())
+        self.load_messages(self.destination)
+
+    def attach_file(self):
+        def dismiss_popup():
+            self._popup.dismiss()
+
+        content = FileDialog(load=self.load_file, cancel=dismiss_popup)
+        self._popup = Popup(title="Load file", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
 
     """Helper methods"""
 
@@ -214,6 +249,11 @@ class ChatApp(App):
                 self.set_sidebar_to_friend_list()
         except builtins.IndexError:
             pass
+
+    def load_file(self, filepath, filename):        # filepath is pointless, but it has to be there due to how attrs
+        file = open(filename[0], "rb")              # are handled. too bad!
+        self.send_file(file.read())
+        self._popup.dismiss()
 
     def poll_commands(self):
         if not Commands.empty():
@@ -306,7 +346,7 @@ class ChatApp(App):
 
     def accept_request_reply(self, packet):
         private = DiffieHellman()
-        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix
+        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix. ugly.
         common = private.gen_shared_key(int(packet['content']))
         add_common_key(packet['sender'], common, self.username)
         delete_private_key(packet['sender'], self.username)
@@ -372,7 +412,7 @@ class ChatApp(App):
                 i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
                 Logger.error(f"Application: MAC error on message id {i.id}")
-                i.message_data = "[Message decryption failed.]"
+                i.message_data = "[Message decryption failed.]"             # bound to give granny a scare
 
         for i in messages:
             if i.sender == self.username:
@@ -402,7 +442,7 @@ class ChatApp(App):
 
     """Static methods"""
 
-    def hide_widget(self, widget):
+    def hide_widget(self, widget):          # there has to be a better method for this. too bad!
         if not self.check_if_hidden(widget):
             wid = widget
             wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
@@ -435,7 +475,8 @@ class Client(Protocol):
         self.username = None
         self.destination = None
 
-    def connectionMade(self):
+    def connectionMade(self):   # note: after login fails, connectionMade may be called a full minute later
+                                # macos issue? Don't happen on windows. Too bad!
         Commands.put({'command': "202"})
 
     def dataReceived(self, data):

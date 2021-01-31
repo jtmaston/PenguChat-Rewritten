@@ -8,13 +8,14 @@ from peewee import *
 
 path = user_data_dir("PenguChat")
 
+
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
 
 from kivy import Logger
 
-db = SqliteDatabase(path + 'messages.db')
+db = SqliteDatabase(path + '/messages.db')
 
 
 class CommonKeys(Model):
@@ -144,9 +145,9 @@ def get_messages(partner, username):
 
 
 def save_message(packet, username):
-    if type(packet['content']) != 'bytes':
+    try:
         message = packet['content'].encode()
-    else:
+    except AttributeError:
         message = packet['content']
 
     Messages(

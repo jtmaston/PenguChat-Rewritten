@@ -89,6 +89,26 @@
 	        pos: self.pos
 	        size: self.size
 
+<FileDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            path: './'
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Load"
+                on_release: root.load(filechooser.path, filechooser.selection)
+
 ScreenManager:
 	transition: RiseInTransition()
 	LoginScreen:
@@ -214,6 +234,11 @@ ScreenManager:
 					on_text_validate: app.send_sign_up_data()
 
 			BlueButton:
+				text: 'Login'
+				color: 0,0,0,1
+				on_press: app.root.current = "login"
+
+			BlueButton:
 				text: 'Sign up'
 				color: 0,0,0,1
 				on_press: app.send_sign_up_data()
@@ -252,6 +277,11 @@ ScreenManager:
 					write_tab: False
 					multiline: False
 					on_text_validate: app.send_sign_up_data()
+
+            BlueButton:
+				text: 'Login'
+				color: 0,0,0,1
+				on_press: app.root.current = "login"
 
 			BlueButton:
 				text: 'Sign up'
@@ -325,6 +355,10 @@ ScreenManager:
                         Button:
                             text: 'Send'
                             on_press: app.send()
+                            size_hint: (0.3, 1)
+                        Button:
+                            text: 'Attach file'
+                            on_press: app.attach_file()
                             size_hint: (0.3, 1)
     LoginScreen:
 		name: 'not_connected_screen'

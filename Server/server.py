@@ -38,6 +38,7 @@ class Server(Protocol):
             packet = json.loads(data)
         except Exception as e:
             print(f"Tried loading, failed! Reason: {e}")
+            print(data)
             self.transport.loseConnection()
             return
 
