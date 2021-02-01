@@ -1,5 +1,4 @@
 # TODO: The database handler needs a redesign
-import sys
 from datetime import datetime
 from os import makedirs, environ
 
@@ -7,14 +6,10 @@ from appdirs import user_data_dir
 from peewee import *
 
 path = user_data_dir("PenguChat")
-
-
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
-
 from kivy import Logger
-
 db = SqliteDatabase(path + '/messages.db')
 
 
@@ -43,6 +38,7 @@ class Messages(Model):
     destination = CharField(100)
     message_data = BlobField()
     timestamp = DateTimeField()
+    isfile = BooleanField()
 
     class Meta:
         database = db
@@ -141,7 +137,7 @@ def get_messages(partner, username):
         ((Messages.destination == partner) & (Messages.sender == username)) |
         ((Messages.sender == partner) & (Messages.destination == username))
     ).order_by(Messages.timestamp)
-    return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username]
+    return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username and i.isfile == False]
 
 
 def save_message(packet, username):
@@ -155,7 +151,8 @@ def save_message(packet, username):
         destination=packet['destination'],
         message_data=message,
         timestamp=datetime.strptime(packet['timestamp'], "%m/%d/%Y, %H:%M:%S"),
-        added_by=username
+        added_by=username,
+        isfile=packet['isfile']
     ).save()
 
 

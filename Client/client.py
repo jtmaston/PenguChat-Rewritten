@@ -1,14 +1,15 @@
 import builtins
+import os
 import pickle
 from base64 import b64encode, b64decode
 from json import dumps, loads
 from queue import Queue
-
-# note: hide. the. damned. logs.
+import sys
 
 from Crypto.Cipher import AES
 from kivy.app import App
 from kivy.base import ExceptionHandler, ExceptionManager
+from kivy.clock import Clock
 from kivy.config import Config
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle
@@ -34,13 +35,6 @@ from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 
 Commands = Queue()
-
-
-class E(ExceptionHandler):
-    def handle_exception(self, inst):
-        Logger.exception('Application: An exception was encountered')
-        return ExceptionManager.PASS
-
 
 class CustomBoxLayout(BoxLayout):
     def __init__(self, **kwargs):
@@ -70,13 +64,8 @@ class SidebarElement:
 
 
 class MessageLabel(Label):
-    test = None
-
     def __init__(self, **kwargs):
         super(MessageLabel, self).__init__(**kwargs)
-
-    def yeet(self):         # NOTE: WHAT DOES THIS DO? THERE'S NO TEST ATTRIBUTE
-        print(self.test)
 
 
 class EmptyWidget(Widget):
@@ -86,6 +75,17 @@ class EmptyWidget(Widget):
 
     def resize_background(self):
         pass
+
+
+class Exception_Watchdog(ExceptionHandler):
+    def handle_exception(self, inst):
+        if type(inst) == KeyboardInterrupt:
+            exit(0)
+        else:
+            Logger.exception('An error has ocurred.')
+            exit(1)
+
+        return ExceptionManager.PASS
 
 
 class ConversationElement:
@@ -172,7 +172,8 @@ class ChatApp(App):
             'command': 'login',
             'password': b64encode(encrypted).decode(),
             'tag': b64encode(tag).decode(),
-            'sender': self.username
+            'sender': self.username,
+            'isfile': False
         }
         self.root.current = 'loading_screen'
         self.factory.client.transport.write(dumps(login_packet).encode())
@@ -208,23 +209,26 @@ class ChatApp(App):
             'destination': self.destination,
             'command': 'message',
             'content': content,
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+            'isfile': False
         }
         save_message(packet, self.username)
         self.factory.client.transport.write(dumps(packet).encode())
         self.load_messages(self.destination)
 
-    def send_file(self, stream):
+    def send_file(self, stream, filename):
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
         content = pickle.dumps(cipher.encrypt_and_digest(stream))
         content = b64encode(content).decode()
-
         packet = {
             'sender': self.username,
             'destination': self.destination,
-            'command': 'file',
-            'content': content,
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            'command': 'message',
+            'content': dumps(
+                {'filename': filename, 'file_contents': content}        # TODO: filename needs encryption, too!
+            ),
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+            'isfile': True
         }
         save_message(packet, self.username)
         self.factory.client.transport.write(dumps(packet).encode())
@@ -250,9 +254,9 @@ class ChatApp(App):
         except builtins.IndexError:
             pass
 
-    def load_file(self, filepath, filename):        # filepath is pointless, but it has to be there due to how attrs
-        file = open(filename[0], "rb")              # are handled. too bad!
-        self.send_file(file.read())
+    def load_file(self, filepath, full_path):
+        file = open(full_path[0], "rb")
+        self.send_file(file.read(), os.path.basename(file.name))
         self._popup.dismiss()
 
     def poll_commands(self):
@@ -303,7 +307,8 @@ class ChatApp(App):
                 'command': 'friend_request',
                 'content': self.private.gen_public_key(),
                 'destination': text_box.text,
-                'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+                'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                'isfile': False
             }
             self.factory.client.transport.write(dumps(packet).encode())
             popup.dismiss()
@@ -330,14 +335,16 @@ class ChatApp(App):
             'command': 'friend_accept',
             'content': self.private.gen_public_key(),
             'destination': friend,
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+            'isfile': False
         }
         start_message = {
             'sender': packet['destination'],
             'destination': packet['sender'],
             'command': 'message',
             'content': chr(224),
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+            'isfile': False
         }
         save_message(start_message, self.username)
         del self.sidebar_refs[friend]
@@ -346,8 +353,8 @@ class ChatApp(App):
 
     def accept_request_reply(self, packet):
         private = DiffieHellman()
-        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix. ugly.
-        common = private.gen_shared_key(int(packet['content']))
+        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix. should be
+        common = private.gen_shared_key(int(packet['content']))                       # fine
         add_common_key(packet['sender'], common, self.username)
         delete_private_key(packet['sender'], self.username)
         start_message = {
@@ -355,7 +362,8 @@ class ChatApp(App):
             'destination': self.username,
             'command': 'message',
             'content': chr(224),
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+            'isfile': False
         }
         save_message(start_message, self.username)
         self.set_sidebar_to_friend_list()
@@ -412,7 +420,8 @@ class ChatApp(App):
                 i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
                 Logger.error(f"Application: MAC error on message id {i.id}")
-                i.message_data = "[Message decryption failed.]"             # bound to give granny a scare
+                i.message_data = "[Message decryption failed.]"  # note: maybe change to something less scary for the
+                pass                                             # user?
 
         for i in messages:
             if i.sender == self.username:
@@ -442,7 +451,7 @@ class ChatApp(App):
 
     """Static methods"""
 
-    def hide_widget(self, widget):          # there has to be a better method for this. too bad!
+    def hide_widget(self, widget):
         if not self.check_if_hidden(widget):
             wid = widget
             wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
@@ -475,12 +484,10 @@ class Client(Protocol):
         self.username = None
         self.destination = None
 
-    def connectionMade(self):   # note: after login fails, connectionMade may be called a full minute later
-                                # macos issue? Don't happen on windows. Too bad!
-        Commands.put({'command': "202"})
+    def connectionMade(self):  # note: after login fails, connectionMade may be called a full minute later.
+        Commands.put({'command': "202"})  # Could be macos issue? Doesn't happen on windows. Too bad!
 
     def dataReceived(self, data):
-        # print(data)
         data = data.decode().split('}')
         for i in data:
             if i:
@@ -505,6 +512,7 @@ class ClientFactory(Factory):
 
     def clientConnectionFailed(self, connector, reason):
         Logger.warning('Application: Connection failed!')
+        Clock.usleep(1000000)
         Commands.put({'command': "504"})
         connector.connect()
 
@@ -514,7 +522,7 @@ class ClientFactory(Factory):
 
 
 if __name__ == '__main__':
-    ExceptionManager.add_handler(E())
+    ExceptionManager.add_handler(Exception_Watchdog())
 
     """
     USED FOR BUILDING OF STANDALONE WINDOWS APP

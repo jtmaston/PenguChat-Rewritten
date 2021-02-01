@@ -1,13 +1,19 @@
 # TODO: The database handler needs a redesign
 
 from datetime import datetime
-from os import makedirs
+from os import makedirs, environ
 
 import bcrypt
 from appdirs import user_data_dir
 from peewee import *
 
 path = user_data_dir("PenguChatServer", "aanas")
+environ['KIVY_NO_ENV_CONFIG'] = '1'
+environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
+environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
+
+from kivy import Logger
+
 db = SqliteDatabase(path + '/Users.db')
 
 
@@ -28,6 +34,7 @@ class MessageCache(Model):
     content = TextField()
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
+    isfile = BooleanField()
 
     class Meta:
         database = db
@@ -39,7 +46,8 @@ def add_message_to_cache(packet):
         destination=packet['destination'],
         content=packet['content'],
         timestamp=packet['timestamp'],
-        command=packet['command']
+        command=packet['command'],
+        isfile=packet['isfile']
     ).save()
 
 
@@ -68,7 +76,7 @@ def login(username, password):
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:
-        print("User not found!")
+        Logger.warning("User not found!")
         return False
     else:
         salt = get_salt_for_user(username)

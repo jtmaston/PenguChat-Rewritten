@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-# TODO: Implement proper logging
 
 import json
 from base64 import b64decode
@@ -28,7 +27,7 @@ class Server(Protocol):
 
     def connectionLost(self, reason=connectionDone):
         if self.endpoint_username is not None:
-            print(self.endpoint_username + " logged out.")
+            Logger.info(self.endpoint_username + " logged out.")
             del self.factory.connections[self.endpoint_username]
             self.endpoint_username = None
 
@@ -37,8 +36,9 @@ class Server(Protocol):
         try:
             packet = json.loads(data)
         except Exception as e:
-            print(f"Tried loading, failed! Reason: {e}")
-            print(data)
+            Logger.error(f"Tried loading, failed! Reason: {e}")
+            Logger.error(f"Message contents was: {data}")
+            Logger.error("Connection forced closed.")
             self.transport.loseConnection()
             return
 
@@ -59,7 +59,7 @@ class Server(Protocol):
             tag = b64decode(packet['tag'].encode())
             password = cipher.decrypt_and_verify(encrypted, tag)
             if login(packet['sender'], password):
-                print(f"{packet['sender']} logged in.")
+                Logger.info(f"{packet['sender']} logged in.")
                 self.factory.connections[packet['sender']] = self
                 self.endpoint_username = packet['sender']
                 cached = get_cached_messages_for_user(packet['sender'])
@@ -129,5 +129,5 @@ class ServerFactory(Factory):
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
-    print("Server started.")
+    Logger.info("Server started.")
     reactor.run()
