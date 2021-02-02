@@ -9,7 +9,7 @@ from peewee import *
 
 path = user_data_dir("PenguChatServer", "aanas")
 environ['KIVY_NO_ENV_CONFIG'] = '1'
-environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
+environ["KCFG_KIVY_LOG_LEVEL"] = "debug"
 environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
 
 from kivy import Logger

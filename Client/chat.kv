@@ -2,11 +2,12 @@
 #:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
 #:import Window kivy.core.window.Window
 #:import Factory kivy.factory.Factory
+#:import utils kivy.utils
 <BoxLayout>:
 	padding: 10
 	spacing: 10
 
-<MessageLabel>
+<MessageLabelLeft>
 	size_hint_y: None
 	size_hint_x: 1
 	padding: (20, 5)
@@ -15,14 +16,26 @@
 
     canvas.before:
         Color:
-            rgba: 0.5, 0.5, 0.5, 1
+            rgba: 0, 0.213, 0.286, 1
         RoundedRectangle:
             radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
             size: self.texture_size
             pos: self.pos
 
+<MessageLabelRight>
+	size_hint_y: None
+	size_hint_x: 1
+	padding: (20, 5)
+    height: self.texture_size[1]
+    text_size: self.width, None
 
-
+    canvas.before:
+        Color:
+            rgba: 0.096, 0.535, 0.656, 1
+        RoundedRectangle:
+            radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
+            size: self.texture_size
+            pos: self.pos
 
 <LoginGridLayout@GridLayout>:
 	rows: 3
@@ -59,6 +72,16 @@
 	background_down: 'assets/red_button_down.png'
 	border: (2, 2, 2, 2)
 
+<MenuButton@Button>:
+    background_normal: 'assets/UI_texture.png'
+	background_down: 'assets/fallback.jpg'
+	canvas.before:
+        Color:
+            rgba: 0, 0.213, 0.286, 1
+        Line:
+            width: 2
+            rectangle: self.x, self.y, self.width, self.height
+
 <TextInput>:
 	font_size: 30
 	multiline: False
@@ -81,13 +104,14 @@
 			pos: self.pos
 			size: self.size
 
-<GrayBoxLayout@BoxLayout>
+<BackgroundContainer@BoxLayout>
 	canvas.before:
 	    Color:
-	        rgba: 0.5, 0.5, 0.5, 1
+	        rgba: 0, 0.213, 0.286, 1
 	    Rectangle:
 	        pos: self.pos
 	        size: self.size
+
 
 <FileDialog>:
     BoxLayout:
@@ -300,26 +324,28 @@ ScreenManager:
 		    orientation: 'vertical'
 		    spacing: 0
 		    padding: 0
-		    GrayBoxLayout:
+		    BackgroundContainer:
 		        padding: 0
                 id: top_bar
                 height: 60
                 orientation: 'horizontal'
                 size_hint: (1, None)
                 spacing: 0
-                Button:
+
+                MenuButton:
                     id: request_button
                     size_hint_x: 0.2
 
-                Button:
+                MenuButton:
                     text: 'Logout'
                     size_hint_x: 0.2
                     on_press: app.logout()
-                Button:
+                MenuButton:
                     text: 'Start a new chat!'
                     on_press: app.new_chat()
 
-            GrayBoxLayout:
+
+            BackgroundContainer:
                 padding: 0, '5px'
                 spacing: 0
                 orientation: 'horizontal'
@@ -352,11 +378,11 @@ ScreenManager:
                         TextInput:
                             id: message_content
                             on_text_validate: app.send()
-                        Button:
+                        MenuButton:
                             text: 'Send'
                             on_press: app.send()
                             size_hint: (0.3, 1)
-                        Button:
+                        MenuButton:
                             text: 'Attach file'
                             on_press: app.attach_file()
                             size_hint: (0.3, 1)

@@ -36,6 +36,7 @@ from twisted.internet.protocol import ClientFactory as Factory
 
 Commands = Queue()
 
+
 class CustomBoxLayout(BoxLayout):
     def __init__(self, **kwargs):
         super(CustomBoxLayout, self).__init__(**kwargs)
@@ -55,17 +56,30 @@ class SidebarElement:
         self.container = CustomBoxLayout(orientation='horizontal')
         self.container.username = username
         self.name = Label(text=username)
-        self.accept = Button(text='Accept')
-        self.decline = Button(text='Decline')
+        self.accept = MenuButton(text='Accept')
+        self.decline = MenuButton(text='Decline')
 
         self.container.add_widget(self.name)
         self.container.add_widget(self.accept)
         self.container.add_widget(self.decline)
 
 
-class MessageLabel(Label):
+class MessageLabelLeft(Label):
     def __init__(self, **kwargs):
-        super(MessageLabel, self).__init__(**kwargs)
+        super(MessageLabelLeft, self).__init__(**kwargs)
+
+
+class MessageLabelRight(Label):
+    def __init__(self, **kwargs):
+        super(MessageLabelRight, self).__init__(**kwargs)
+
+
+class MenuButton(Button):
+    pass
+
+
+class BackgroundContainer(BoxLayout):
+    pass
 
 
 class EmptyWidget(Widget):
@@ -97,10 +111,10 @@ class ConversationElement:
         self.right = None
 
         if side == 'l':
-            self.left = MessageLabel(text=text)
+            self.left = MessageLabelLeft(text=text)
             self.right = EmptyWidget()
         else:
-            self.right = MessageLabel(text=text)
+            self.right = MessageLabelRight(text=text)
             self.left = EmptyWidget()
 
         self.line.add_widget(self.left)
@@ -220,12 +234,15 @@ class ChatApp(App):
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
         content = pickle.dumps(cipher.encrypt_and_digest(stream))
         content = b64encode(content).decode()
+        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
+        filename = pickle.dumps(cipher.encrypt_and_digest(filename.encode()))
+        filename = b64encode(filename).decode()
         packet = {
             'sender': self.username,
             'destination': self.destination,
             'command': 'message',
             'content': dumps(
-                {'filename': filename, 'file_contents': content}        # TODO: filename needs encryption, too!
+                {'filename': filename, 'file_contents': content}  # Done: filename needs encryption, too!
             ),
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
             'isfile': True
@@ -313,14 +330,25 @@ class ChatApp(App):
             self.factory.client.transport.write(dumps(packet).encode())
             popup.dismiss()
 
-        bar = BoxLayout(orientation='horizontal')
-        text_box = TextInput(size_hint_x=0.8, write_tab=False, multiline=False)
-        text_box.bind(on_text_validate=send_chat_request)
-        bar.add_widget(text_box)
-        popup = Popup(title='Test popup',
-                      content=bar,
+        container = BackgroundContainer(orientation='vertical')
+
+        popup = Popup(title='Send friend request',
+                      content=container,
                       size_hint=(None, None),
-                      size=(800, 400))
+                      size=(400, 300))
+
+        text_box = TextInput(write_tab=False, multiline=False, size_hint_y=0.6)
+        button_box = BoxLayout(orientation='horizontal', size_hint_y=0.4)
+
+        text_box.bind(on_text_validate=send_chat_request)
+        button_send = MenuButton(text="Send!", on_press=send_chat_request)
+        button_cancel = MenuButton(text="Cancel", on_press=popup.dismiss)
+
+        container.add_widget(text_box)
+        button_box.add_widget(button_send)
+        button_box.add_widget(button_cancel)
+        container.add_widget(button_box)
+
         popup.open()
 
     def accept_request(self, button_object):
@@ -354,7 +382,7 @@ class ChatApp(App):
     def accept_request_reply(self, packet):
         private = DiffieHellman()
         private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix. should be
-        common = private.gen_shared_key(int(packet['content']))                       # fine
+        common = private.gen_shared_key(int(packet['content']))  # fine
         add_common_key(packet['sender'], common, self.username)
         delete_private_key(packet['sender'], self.username)
         start_message = {
@@ -384,7 +412,7 @@ class ChatApp(App):
         self.root.ids.sidebar.clear_widgets()
 
         for i in names:
-            a = Button(text=i)
+            a = MenuButton(text=i)
             a.bind(on_press=self.show_message_box)
             self.root.ids.sidebar.rows += 1
             self.root.ids.sidebar.add_widget(a)
@@ -421,7 +449,7 @@ class ChatApp(App):
             except ValueError:
                 Logger.error(f"Application: MAC error on message id {i.id}")
                 i.message_data = "[Message decryption failed.]"  # note: maybe change to something less scary for the
-                pass                                             # user?
+                pass  # user?
 
         for i in messages:
             if i.sender == self.username:
@@ -495,7 +523,7 @@ class Client(Protocol):
                 Commands.put(packet)
 
     def connectionLost(self, reason=connectionDone):
-        print(reason.value)
+        Logger.info(reason.value)
 
 
 class ClientFactory(Factory):

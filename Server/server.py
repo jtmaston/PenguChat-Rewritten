@@ -32,7 +32,7 @@ class Server(Protocol):
             self.endpoint_username = None
 
     def dataReceived(self, data):
-        print(data)
+        Logger.debug(data)
         try:
             packet = json.loads(data)
         except Exception as e:
