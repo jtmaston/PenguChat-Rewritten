@@ -91,7 +91,7 @@ class EmptyWidget(Widget):
         pass
 
 
-class Exception_Watchdog(ExceptionHandler):
+class ExceptionWatchdog(ExceptionHandler):
     def handle_exception(self, inst):
         if type(inst) == KeyboardInterrupt:
             exit(0)
@@ -550,7 +550,7 @@ class ClientFactory(Factory):
 
 
 if __name__ == '__main__':
-    ExceptionManager.add_handler(Exception_Watchdog())
+    ExceptionManager.add_handler(ExceptionWatchdog())
 
     """
     USED FOR BUILDING OF STANDALONE WINDOWS APP

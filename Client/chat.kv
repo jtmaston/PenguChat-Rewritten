@@ -60,21 +60,13 @@
 	font_size: 30
 	height: 90
 	size_hint: (1, None)
-	background_normal: 'assets/button_normal.png'
-	background_down: 'assets/button_down.png'
-	border: (2, 2, 2, 2)
+	background_normal: 'assets/fallback.png'
+	background_color: 0.181, 0.566, 0.755
 
-<RedButton@Button>:
-	font_size: 30
-	height: 90
-	size_hint: (1, None)
-	background_normal: 'assets/red_button_normal.png'
-	background_down: 'assets/red_button_down.png'
-	border: (2, 2, 2, 2)
 
 <MenuButton@Button>:
-    background_normal: 'assets/UI_texture.png'
-	background_down: 'assets/fallback.jpg'
+    background_normal: 'assets/fallback.png'
+	background_color: 0, 0.413, 0.586
 	canvas.before:
         Color:
             rgba: 0, 0.213, 0.286, 1
@@ -100,7 +92,7 @@
         Window.size = (500, 700)
 	canvas:
 		Rectangle:
-			source:"assets/wallpaper.jpg"
+			source:"assets/wallpaper.png"
 			pos: self.pos
 			size: self.size
 
@@ -361,7 +353,7 @@ ScreenManager:
                         Color:
 							rgba: 1, 1, 1, 1
 						Rectangle:
-							source:"assets/large-wallpaper.jpg"
+							source:"assets/large-wallpaper.png"
 							pos: self.pos
 							size: self.size
 					ScrollView:
