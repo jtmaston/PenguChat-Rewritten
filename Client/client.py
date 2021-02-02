@@ -91,6 +91,19 @@ class EmptyWidget(Widget):
         pass
 
 
+class ErrorLabel(Label):
+    def __init__(self, *args, **kwargs):
+        super(ErrorLabel, self).__init__(*args, **kwargs)
+        with self.canvas.before:
+            Color(1, 0, 0)
+            self.rect = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self.update_rect, size=self.update_rect)
+
+    def update_rect(self, value, new_position):
+        self.rect.pos = self.pos
+        self.rect.size = self.size
+
+
 class ExceptionWatchdog(ExceptionHandler):
     def handle_exception(self, inst):
         if type(inst) == KeyboardInterrupt:
@@ -141,8 +154,6 @@ class ChatApp(App):
         self.private = None
         self.factory = None
         self.server_key = None
-        self.failed_login = None
-        self.failed_signup = None
         self.sidebar_refs = dict()
         self.conversation_refs = []
         self.friend_refs = []
@@ -170,16 +181,12 @@ class ChatApp(App):
     """Methods that send data to server"""
 
     def send_login_data(self):
-        if not self.failed_login:
-            pwd = self.root.ids.loginPass.text
-            self.username = self.root.ids.loginUsr.text
-        else:
-            pwd = self.root.ids.loginPass_failed.text
-            self.username = self.root.ids.loginUsr_failed.text
+        pwd = self.root.ids.loginPass.text
+        self.username = self.root.ids.loginUsr.text
         try:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
         except AttributeError:
-            self.root.current = 'not_connected_text'
+            Commands.put({'command': "504"})
             return False
         encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
         login_packet = {
@@ -284,28 +291,100 @@ class ChatApp(App):
                     self.server_key = self.private.gen_shared_key(command['content'])
                     self.root.current = 'login'
                 elif command['command'] == '200':
+                    for screen in self.root.screens:
+                        if screen.name == 'login':
+                            try:
+                                screen.has_error
+                            except AttributeError:
+                                pass
+                            else:
+                                if screen.has_error:
+                                    screen.has_error = False
+                                    screen.children[0].remove_widget(screen.children[0].children[
+                                                                         len(screen.children[0].children) - 1])
+
                     self.root.current = 'chat_room'
                 elif command['command'] == '201':
+                    for screen in self.root.screens:
+                        if screen.name == 'signup':
+                            try:
+                                screen.has_error
+                            except AttributeError:
+                                pass
+                            else:
+                                if screen.has_error:
+                                    screen.has_error = False
+                                    screen.children[0].remove_widget(screen.children[0].children[
+                                                                         len(screen.children[0].children) - 1])
+                            screen.has_error = False        # TODO: Add dedicated function for toggling error.
                     self.root.current = 'chat_room'
                 elif command['command'] == '504':
-                    self.root.current = 'not_connected_screen'
+                    for screen in self.root.screens:
+                        if screen.name == 'login':
+                            try:
+                                screen.network_error
+                            except AttributeError:
+                                error = ErrorLabel()
+                                error.size_hint_y = 0.2
+                                error.text = "Cannot connect!"
+                                for i in screen.children[0].children:
+                                    i.disabled = True
+                                screen.children[0].add_widget(error, len(screen.children[0].children))
+                                screen.network_error = True
+                    self.root.current = 'login'
                 elif command['command'] == '202':
+                    for screen in self.root.screens:
+                        if screen.name == 'login':
+                            try:
+                                screen.network_error
+                            except AttributeError:
+                                pass
+                            else:
+                                if screen.network_error:
+                                    screen.network_error = False
+                                    screen.children[0].remove_widget(screen.children[0].children[
+                                                                         len(screen.children[0].children) - 1])
+                                    for i in screen.children[0].children:
+                                        i.disabled = False
+                    self.root.current = 'login'
                     self.secure()
                 elif command['command'] == 'friend_key':
                     add_common_key(command['friend'],
                                    self.private.gen_shared_key(command['content']),
                                    self.username)
                 elif command['command'] == '406':
-                    self.root.ids.username_fail.text = ""
-                    self.root.ids.passwd_fail.text = ""
-                    self.root.ids.passwd_r_fail.text = ""
-                    self.root.current = 'signup_fail'
-                    self.failed_signup = True
+                    for screen in self.root.screens:
+                        if screen.name == 'signup':
+                            try:
+                                screen.has_error
+                            except AttributeError:
+                                screen.has_error = False
+                            finally:
+                                if not screen.has_error:
+                                    error = ErrorLabel()
+                                    error.size_hint_y = 0.2
+                                    error.text = "Username is taken, sorry!"
+                                    screen.children[0].add_widget(error, len(screen.children[0].children))
+                                    screen.has_error = True
+
+                    self.root.current = 'signup'
                 elif command['command'] == '401':
-                    self.root.current = 'login_failed'
-                    self.root.ids.loginPass_failed.text = ""
-                    self.root.ids.loginUsr_failed.text = ""
-                    self.failed_login = True
+                    for screen in self.root.screens:
+                        if screen.name == 'login':
+                            try:
+                                screen.has_error
+                            except AttributeError:
+                                screen.has_error = False
+                            finally:
+                                if not screen.has_error:
+                                    error = ErrorLabel()
+                                    error.size_hint_y = 0.2
+                                    error.text = "Username or password incorrect."
+                                    screen.children[0].add_widget(error, len(screen.children[0].children))
+                                    screen.has_error = True
+
+                    self.root.current = 'login'
+
                 elif command['command'] == 'friend_request':
                     add_request(command)
                     self.refresh()
@@ -330,7 +409,7 @@ class ChatApp(App):
             self.factory.client.transport.write(dumps(packet).encode())
             popup.dismiss()
 
-        container = BackgroundContainer(orientation='vertical')
+        container = BackgroundContainer(orientation='vertical', padding=10, spacing=10)
 
         popup = Popup(title='Send friend request',
                       content=container,
@@ -338,7 +417,7 @@ class ChatApp(App):
                       size=(400, 300))
 
         text_box = TextInput(write_tab=False, multiline=False, size_hint_y=0.6)
-        button_box = BoxLayout(orientation='horizontal', size_hint_y=0.4)
+        button_box = BoxLayout(orientation='horizontal', size_hint_y=0.4, padding=10, spacing=10)
 
         text_box.bind(on_text_validate=send_chat_request)
         button_send = MenuButton(text="Send!", on_press=send_chat_request)
@@ -382,7 +461,7 @@ class ChatApp(App):
     def accept_request_reply(self, packet):
         private = DiffieHellman()
         private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix. should be
-        common = private.gen_shared_key(int(packet['content']))  # fine
+        common = private.gen_shared_key(int(packet['content']))  # TODO: Sometimes getting errors. Why?
         add_common_key(packet['sender'], common, self.username)
         delete_private_key(packet['sender'], self.username)
         start_message = {
@@ -513,6 +592,7 @@ class Client(Protocol):
         self.destination = None
 
     def connectionMade(self):  # note: after login fails, connectionMade may be called a full minute later.
+        Logger.info("Established connection.")# TODO: cause is queue. More testing required.
         Commands.put({'command': "202"})  # Could be macos issue? Doesn't happen on windows. Too bad!
 
     def dataReceived(self, data):
@@ -540,7 +620,6 @@ class ClientFactory(Factory):
 
     def clientConnectionFailed(self, connector, reason):
         Logger.warning('Application: Connection failed!')
-        Clock.usleep(1000000)
         Commands.put({'command': "504"})
         connector.connect()
 

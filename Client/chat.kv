@@ -132,49 +132,6 @@ ScreenManager:
 	        pos: self.pos
 	        source: "Assets/Loading.gif"
 
-    LoginScreen:
-		name: 'login_failed'
-		BoxLayout:
-			orientation: 'vertical'
-			padding: 10
-	        spacing: 10
-			Label:
-			    size_hint_y: 0.2
-                canvas.before:
-                    Color:
-                        rgba: 1, 0, 0, 1
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
-                text: "Username or password incorrect!"
-			LoginGridLayout:
-				LoginLabel:
-					text: 'Username:'
-
-				TextInput:
-					id: loginUsr_failed
-					write_tab: False
-					multiline: False
-
-				LoginLabel:
-					text: 'Password'
-
-				TextInput:
-					id: loginPass_failed
-					password: True
-					write_tab: False
-					multiline: False
-					on_text_validate: app.send_login_data()
-
-			BlueButton:
-				color: 0, 0, 0, 1
-				text: 'Connect'
-				on_press: app.send_login_data()
-			BlueButton:
-				text: 'Sign up'
-				color: 0, 0, 0, 1
-				on_press: app.root.current = 'signup'
-
 	LoginScreen:
 		name: 'login'
 		BoxLayout:
@@ -211,58 +168,6 @@ ScreenManager:
 				text: 'Sign up'
 				color: 0, 0, 0, 1
 				on_press: app.root.current = 'signup'
-	LoginScreen:
-		name: 'signup_fail'
-		BoxLayout:
-		    padding: 10
-	        spacing: 10
-			orientation: 'vertical'
-			Label:
-			    size_hint_y: 0.2
-                canvas.before:
-                    Color:
-                        rgba: 1, 0, 0, 1
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
-                text: "That username is taken!"
-			LoginGridLayout:
-				LoginLabel:
-					text: 'Username:'
-
-				TextInput:
-					id: username_fail
-					write_tab: False
-					multiline: False
-
-				LoginLabel:
-					text: 'Password'
-
-				TextInput:
-					id: passwd_fail
-					password: True
-					write_tab: False
-					multiline: False
-
-				LoginLabel:
-					text: 'Password (again)'
-
-				TextInput:
-					id: passwd_r_fail
-					password: True
-					write_tab: False
-					multiline: False
-					on_text_validate: app.send_sign_up_data()
-
-			BlueButton:
-				text: 'Login'
-				color: 0,0,0,1
-				on_press: app.root.current = "login"
-
-			BlueButton:
-				text: 'Sign up'
-				color: 0,0,0,1
-				on_press: app.send_sign_up_data()           # TODO: CHECK! May be bad!
 
 	LoginScreen:
 		name: 'signup'
@@ -385,33 +290,4 @@ ScreenManager:
                             text: 'Attach file'
                             on_press: app.attach_file()
                             size_hint: (0.3, 1)
-    LoginScreen:
-		name: 'not_connected_screen'
-		BoxLayout:
-			orientation: 'vertical'
-			Label:
-			    size_hint_y: 0.2
-                canvas.before:
-                    Color:
-                        rgba: 1, 0, 0, 1
-                    Rectangle:
-                        pos: self.pos
-                        size: self.size
-                text: "Not connected!"
-			LoginGridLayout:
-				LoginLabel:
-					text: 'Username:'
-				TextInput:
-					disabled: True
-				LoginLabel:
-					text: 'Password'
-				TextInput:
-					disabled: True
-			BlueButton:
-				color: 0, 0, 0, 1
-				text: 'Connect'
-				disabled: True
-			BlueButton:
-				text: 'Sign up'
-				color: 0, 0, 0, 1
-				disabled: True
+                            disabled: True
