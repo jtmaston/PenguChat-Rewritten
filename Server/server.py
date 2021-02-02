@@ -1,12 +1,15 @@
+#!/usr/bin/python3
+
+
 import json
 from base64 import b64decode
 
 from Crypto.Cipher import AES
-from pyDHFixed import DiffieHellman
+from pyDH import DiffieHellman
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory, connectionDone
 
-from Server.DBHandler import *
+from DBHandler import *
 
 
 def get_transportable_data(packet):
@@ -17,19 +20,28 @@ class Server(Protocol):
     def __init__(self, factory):
         self.factory = factory
         self.endpoint_username = None
+        self.key = None
 
     def connectionMade(self):
         pass
 
     def connectionLost(self, reason=connectionDone):
         if self.endpoint_username is not None:
-            print(self.endpoint_username + " logged out.")
+            Logger.info(self.endpoint_username + " logged out.")
             del self.factory.connections[self.endpoint_username]
             self.endpoint_username = None
 
     def dataReceived(self, data):
-        print(data)
-        packet = json.loads(data)
+        Logger.debug(data)
+        try:
+            packet = json.loads(data)
+        except Exception as e:
+            Logger.error(f"Tried loading, failed! Reason: {e}")
+            Logger.error(f"Message contents was: {data}")
+            Logger.error("Connection forced closed.")
+            self.transport.loseConnection()
+            return
+
         if packet['command'] == 'secure':
             private = DiffieHellman()
             public = private.gen_public_key()
@@ -47,7 +59,7 @@ class Server(Protocol):
             tag = b64decode(packet['tag'].encode())
             password = cipher.decrypt_and_verify(encrypted, tag)
             if login(packet['sender'], password):
-                print(f"{packet['sender']} logged in.")
+                Logger.info(f"{packet['sender']} logged in.")
                 self.factory.connections[packet['sender']] = self
                 self.endpoint_username = packet['sender']
                 cached = get_cached_messages_for_user(packet['sender'])
@@ -117,5 +129,5 @@ class ServerFactory(Factory):
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
-    print("Server started.")
+    Logger.info("Server started.")
     reactor.run()

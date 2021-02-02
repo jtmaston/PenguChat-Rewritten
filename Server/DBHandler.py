@@ -1,11 +1,20 @@
 # TODO: The database handler needs a redesign
 
 from datetime import datetime
+from os import makedirs, environ
 
 import bcrypt
+from appdirs import user_data_dir
 from peewee import *
 
-db = SqliteDatabase('D:/pc.db')
+path = user_data_dir("PenguChatServer", "aanas")
+environ['KIVY_NO_ENV_CONFIG'] = '1'
+environ["KCFG_KIVY_LOG_LEVEL"] = "debug"
+environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
+
+from kivy import Logger
+
+db = SqliteDatabase(path + '/Users.db')
 
 
 class User(Model):
@@ -25,6 +34,7 @@ class MessageCache(Model):
     content = TextField()
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
+    isfile = BooleanField()
 
     class Meta:
         database = db
@@ -36,7 +46,8 @@ def add_message_to_cache(packet):
         destination=packet['destination'],
         content=packet['content'],
         timestamp=packet['timestamp'],
-        command=packet['command']
+        command=packet['command'],
+        isfile=packet['isfile']
     ).save()
 
 
@@ -65,7 +76,7 @@ def login(username, password):
     try:
         query = User.get(User.username == username)
     except User.DoesNotExist:
-        print("notfound")
+        Logger.warning("User not found!")
         return False
     else:
         salt = get_salt_for_user(username)
@@ -93,3 +104,17 @@ def get_salt_for_user(username):
         return False
     else:
         return query.password_salt.encode()
+
+
+try:
+    db.create_tables([User, MessageCache])
+except OperationalError as t:
+    try:
+        makedirs(path)
+    except FileExistsError:
+        pass
+    try:
+        open(path + '/Users.db')
+    except FileNotFoundError:
+        with open(path + '/Users.db'):
+            pass
