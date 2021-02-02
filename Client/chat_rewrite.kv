@@ -1,128 +1,3 @@
-#:import C kivy.utils.get_color_from_hex
-#:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
-#:import Window kivy.core.window.Window
-#:import Factory kivy.factory.Factory
-#:import utils kivy.utils
-
-
-<MessageLabelLeft>
-	size_hint_y: None
-	size_hint_x: 1
-	padding: (20, 5)
-    height: self.texture_size[1]
-    text_size: self.width, None
-
-    canvas.before:
-        Color:
-            rgba: 0, 0.213, 0.286, 1
-        RoundedRectangle:
-            radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
-            size: self.texture_size
-            pos: self.pos
-
-<MessageLabelRight>
-	size_hint_y: None
-	size_hint_x: 1
-	padding: (20, 5)
-    height: self.texture_size[1]
-    text_size: self.width, None
-
-    canvas.before:
-        Color:
-            rgba: 0.096, 0.535, 0.656, 1
-        RoundedRectangle:
-            radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
-            size: self.texture_size
-            pos: self.pos
-
-<LoginGridLayout@GridLayout>:
-	rows: 3
-	cols: 2
-	spacing: 10
-	row_default_height: 90
-	row_force_default: True
-
-<ListGridLayout@GridLayout>:
-    size_hint_y: None
-    height: self.minimum_height
-    cols: 1
-    rows: 0
-    row_default_height: '100dp'
-    row_force_default: True
-    spacing: 0, 5
-
-<Label>:
-	font_size: 25
-
-<BlueButton@Button>:
-	font_size: 30
-	height: 90
-	size_hint: (1, None)
-	background_normal: 'assets/fallback.png'
-	background_color: 0.181, 0.566, 0.755
-
-
-<MenuButton@Button>:
-    background_normal: 'assets/fallback.png'
-	background_color: 0, 0.413, 0.586
-	canvas.before:
-        Color:
-            rgba: 0, 0.213, 0.286, 1
-        Line:
-            width: 2
-            rectangle: self.x, self.y, self.width, self.height
-
-<TextInput>:
-	font_size: 30
-	multiline: False
-	padding: [10, 0.5 * (self.height - self.line_height)]
-
-<LoginLabel@Label>:
-	color: 0, 0, 0, 1
-	font_size: 25
-	text_size: self.size
-	halign: 'left'
-	valign: 'middle'
-	size_hint: (0.4, 1)
-
-<LoginScreen@Screen>:
-    on_pre_enter:
-        Window.size = (500, 700)
-	canvas:
-		Rectangle:
-			source:"assets/wallpaper.png"
-			pos: self.pos
-			size: self.size
-
-<BackgroundContainer@BoxLayout>
-	canvas.before:
-	    Color:
-	        rgba: 0, 0.213, 0.286, 1
-	    Rectangle:
-	        pos: self.pos
-	        size: self.size
-
-
-<FileDialog>:
-    BoxLayout:
-        size: root.size
-        pos: root.pos
-        orientation: "vertical"
-        FileChooserListView:
-            id: filechooser
-            path: './'
-
-        BoxLayout:
-            size_hint_y: None
-            height: 30
-            Button:
-                text: "Cancel"
-                on_release: root.cancel()
-
-            Button:
-                text: "Load"
-                on_release: root.load(filechooser.path, filechooser.selection)
-
 ScreenManager:
 	transition: RiseInTransition()
 	LoginScreen:
@@ -176,7 +51,7 @@ ScreenManager:
 				on_press: app.root.current = 'signup'
 
 	LoginScreen:
-		name: 'login'
+		name: 'a'
 		BoxLayout:
 		    padding: 10
 	        spacing: 10
@@ -318,7 +193,7 @@ ScreenManager:
 		BoxLayout:
 		    orientation: 'vertical'
 		    BackgroundContainer:
-		        padding: (5, 4, 5, 0)
+		        padding: (0, 4, 0, 0)
                 id: top_bar
                 height: 60
                 orientation: 'horizontal'
