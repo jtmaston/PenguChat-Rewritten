@@ -37,41 +37,12 @@ from twisted.internet.protocol import ClientFactory as Factory
 Commands = Queue()
 
 
-class CustomBoxLayout(BoxLayout):
-    def __init__(self, **kwargs):
-        super(CustomBoxLayout, self).__init__(**kwargs)
-        with self.canvas.before:
-            self.color_widget = Color(0.4, 0.4, 0.4, 1)  # red
-            self._rectangle = Rectangle()
-
-    def on_size(self, *args):
-        if args:
-            pass
-        self._rectangle.size = self.size
-        self._rectangle.pos = self.pos
-
-
-class SidebarElement:
-    def __init__(self, username):
-        self.container = CustomBoxLayout(orientation='horizontal')
-        self.container.username = username
-        self.name = Label(text=username)
-        self.accept = MenuButton(text='Accept')
-        self.decline = MenuButton(text='Decline')
-
-        self.container.add_widget(self.name)
-        self.container.add_widget(self.accept)
-        self.container.add_widget(self.decline)
-
-
 class MessageLabelLeft(Label):
-    def __init__(self, **kwargs):
-        super(MessageLabelLeft, self).__init__(**kwargs)
+    pass
 
 
 class MessageLabelRight(Label):
-    def __init__(self, **kwargs):
-        super(MessageLabelRight, self).__init__(**kwargs)
+    pass
 
 
 class MenuButton(Button):
@@ -83,19 +54,22 @@ class BackgroundContainer(BoxLayout):
 
 
 class EmptyWidget(Widget):
-
-    def texture_update(self):
-        pass
-
-    def resize_background(self):
-        pass
+    pass
 
 
-class ErrorLabel(Label):
-    def __init__(self, *args, **kwargs):
-        super(ErrorLabel, self).__init__(*args, **kwargs)
+class ColoredLabel(Label):
+    def __init__(self, color='gray', **kwargs):
+        super(ColoredLabel, self).__init__(**kwargs)
+
+        colors = {
+            'red': (1, 0, 0),
+            'gray': (0.4, 0.4, 0.4),
+            'menu_blue': (0, 0.413, 0.586)
+        }
+
         with self.canvas.before:
-            Color(1, 0, 0)
+            self.background_color = Color()
+            self.background_color.rgb = colors[color]
             self.rect = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self.update_rect, size=self.update_rect)
 
@@ -104,12 +78,25 @@ class ErrorLabel(Label):
         self.rect.size = self.size
 
 
+class SidebarElement:
+    def __init__(self, username):
+        self.container = BoxLayout(orientation='horizontal')
+        self.container.username = username
+        self.name = ColoredLabel(text=username, color='menu_blue')
+        self.accept = MenuButton(text='Accept')
+        self.decline = MenuButton(text='Decline')
+
+        self.container.add_widget(self.name)
+        self.container.add_widget(self.accept)
+        self.container.add_widget(self.decline)
+
+
 class ExceptionWatchdog(ExceptionHandler):
     def handle_exception(self, inst):
         if type(inst) == KeyboardInterrupt:
             exit(0)
         else:
-            Logger.exception('An error has ocurred.')
+            Logger.exception('An error has occurred.')
             exit(1)
 
         return ExceptionManager.PASS
@@ -132,9 +119,6 @@ class ConversationElement:
 
         self.line.add_widget(self.left)
         self.line.add_widget(self.right)
-
-        self.left.texture_update()
-        self.right.texture_update()
 
 
 class FileDialog(FloatLayout):
@@ -316,7 +300,7 @@ class ChatApp(App):
                                     screen.has_error = False
                                     screen.children[0].remove_widget(screen.children[0].children[
                                                                          len(screen.children[0].children) - 1])
-                            screen.has_error = False        # TODO: Add dedicated function for toggling error.
+                            screen.has_error = False  # TODO: Add dedicated function for toggling error.
                     self.root.current = 'chat_room'
                 elif command['command'] == '504':
                     for screen in self.root.screens:
@@ -324,7 +308,7 @@ class ChatApp(App):
                             try:
                                 screen.network_error
                             except AttributeError:
-                                error = ErrorLabel()
+                                error = ColoredLabel(color='red')
                                 error.size_hint_y = 0.2
                                 error.text = "Cannot connect!"
                                 for i in screen.children[0].children:
@@ -361,7 +345,7 @@ class ChatApp(App):
                                 screen.has_error = False
                             finally:
                                 if not screen.has_error:
-                                    error = ErrorLabel()
+                                    error = ColoredLabel(color='red')
                                     error.size_hint_y = 0.2
                                     error.text = "Username is taken, sorry!"
                                     screen.children[0].add_widget(error, len(screen.children[0].children))
@@ -377,7 +361,7 @@ class ChatApp(App):
                                 screen.has_error = False
                             finally:
                                 if not screen.has_error:
-                                    error = ErrorLabel()
+                                    error = ColoredLabel(color='red')
                                     error.size_hint_y = 0.2
                                     error.text = "Username or password incorrect."
                                     screen.children[0].add_widget(error, len(screen.children[0].children))
@@ -506,6 +490,7 @@ class ChatApp(App):
         requests = get_requests(self.username)
         for i in requests:
             e = SidebarElement(i)
+
             e.accept.bind(on_press=self.accept_request)
             e.decline.bind(on_press=self.deny_request)
             self.sidebar_refs[i] = e
@@ -549,14 +534,13 @@ class ChatApp(App):
 
     def show_message_box(self, button_object):
         self.destination = button_object.text
+        self.root.ids.message_box.foreground_color = (0, 0, 0)
         if self.check_if_hidden(self.root.ids.message_box):
             self.show_widget(self.root.ids.message_box)
         self.load_messages(self.destination)
 
     def hide_message_box(self):
         self.hide_widget(self.root.ids.message_box)
-
-    """Static methods"""
 
     def hide_widget(self, widget):
         if not self.check_if_hidden(widget):
@@ -576,6 +560,8 @@ class ChatApp(App):
             if widget:
                 pass
 
+    """Static methods"""
+
     @staticmethod
     def check_if_hidden(widget):
         try:
@@ -592,7 +578,7 @@ class Client(Protocol):
         self.destination = None
 
     def connectionMade(self):  # note: after login fails, connectionMade may be called a full minute later.
-        Logger.info("Established connection.")# TODO: cause is queue. More testing required.
+        Logger.info("Established connection.")  # TODO: cause is queue. More testing required.
         Commands.put({'command': "202"})  # Could be macos issue? Doesn't happen on windows. Too bad!
 
     def dataReceived(self, data):

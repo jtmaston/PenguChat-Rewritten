@@ -14,7 +14,7 @@
 
     canvas.before:
         Color:
-            rgba: 0, 0.213, 0.286, 1
+            rgb: 0, 0.213, 0.28
         RoundedRectangle:
             radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
             size: self.texture_size
@@ -29,7 +29,7 @@
 
     canvas.before:
         Color:
-            rgba: 0.096, 0.535, 0.656, 1
+            rgb: 0.096, 0.535, 0.656
         RoundedRectangle:
             radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
             size: self.texture_size
@@ -67,7 +67,7 @@
 	background_color: 0, 0.413, 0.586
 	canvas.before:
         Color:
-            rgba: 0, 0.213, 0.286, 1
+            rgb: 0, 0.213, 0.286
         Line:
             width: 2
             rectangle: self.x, self.y, self.width, self.height
@@ -97,7 +97,7 @@
 <BackgroundContainer@BoxLayout>
 	canvas.before:
 	    Color:
-	        rgba: 0, 0.213, 0.286, 1
+	        rgb: 0, 0.213, 0.286
 	    Rectangle:
 	        pos: self.pos
 	        size: self.size
@@ -134,6 +134,9 @@ ScreenManager:
 
 	LoginScreen:
 		name: 'login'
+		on_leave:
+            app.root.ids.loginUsr.text = ""
+            app.root.ids.loginPass.text = ""
 		BoxLayout:
 		    padding: 10
 	        spacing: 10
@@ -171,6 +174,10 @@ ScreenManager:
 
 	LoginScreen:
 		name: 'signup'
+		on_leave:
+            app.root.ids.passwd.text = ""
+            app.root.ids.passwd_r.text = ""
+            app.root.ids.username.text = ""
 		BoxLayout:
             padding: 10
 	        spacing: 10
@@ -257,7 +264,7 @@ ScreenManager:
                     orientation: 'vertical'
                     canvas.before:
                         Color:
-							rgba: 1, 1, 1, 1
+							rgb: 1, 1, 1
 						Rectangle:
 							source:"assets/large-wallpaper.png"
 							pos: self.pos
@@ -276,7 +283,7 @@ ScreenManager:
                         TextInput:
                             canvas.before:
                                 Color:
-                                    rgba: 0, 0.213, 0.286, 1
+                                    rgb: 0, 0.213, 0.286
                                 Line:
                                     width: 2
                                     rectangle: self.x, self.y, self.width, self.height

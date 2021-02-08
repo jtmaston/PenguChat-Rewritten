@@ -114,7 +114,8 @@ except OperationalError as t:
     except FileExistsError:
         pass
     try:
-        open(path + '/Users.db')
+        open(path + '/Users.db', 'r')
     except FileNotFoundError:
-        with open(path + '/Users.db'):
+        Logger.warning("Database file missing, re-creating. ")
+        with open(path + '/Users.db', "w+"):
             pass

@@ -194,5 +194,5 @@ except OperationalError as t:
     try:
         open(path)
     except FileNotFoundError:
-        with open(path):
+        with open(path + '/messages.db', 'w+'):
             pass
