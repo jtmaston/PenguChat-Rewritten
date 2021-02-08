@@ -119,3 +119,4 @@ except OperationalError as t:
         Logger.warning("Database file missing, re-creating. ")
         with open(path + '/Users.db', "w+"):
             pass
+    db.create_tables([User, MessageCache])

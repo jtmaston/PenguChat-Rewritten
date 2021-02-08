@@ -10,6 +10,7 @@ environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
 environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
 from kivy import Logger
+
 db = SqliteDatabase(path + '/messages.db')
 
 
@@ -192,7 +193,8 @@ except OperationalError as t:
     except FileExistsError:
         pass
     try:
-        open(path)
+        open(path + '/messages.db', 'r')
     except FileNotFoundError:
         with open(path + '/messages.db', 'w+'):
             pass
+    db.create_tables([CommonKeys, Messages, PrivateKeys, Requests])

@@ -28,11 +28,14 @@ class Server(Protocol):
     def connectionLost(self, reason=connectionDone):
         if self.endpoint_username is not None:
             Logger.info(self.endpoint_username + " logged out.")
-            del self.factory.connections[self.endpoint_username]
+            try:
+                del self.factory.connections[self.endpoint_username]
+            except KeyError:
+                pass
             self.endpoint_username = None
 
     def dataReceived(self, data):
-        Logger.debug(data)
+        Logger.info(data)
         try:
             packet = json.loads(data)
         except Exception as e:
