@@ -1,0 +1,7 @@
+('C:\\Users\\aanas\\PycharmProjects\\PenguChat-redesigned\\Build\\Devkit_legacy\\share\\glew\\bin',
+ None,
+ [],
+ 'DATA',
+ [('glew32.dll',
+   'C:\\Users\\aanas\\PycharmProjects\\PenguChat-redesigned\\Build\\Devkit_legacy\\share\\glew\\bin\\glew32.dll',
+   'DATA')])
