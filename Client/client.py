@@ -1,9 +1,13 @@
+from tkinter import filedialog
+import tkinter as tk
+tk_helper = tk.Tk()
+tk_helper.withdraw()
+
 import builtins
 import os
 import pickle
 from base64 import b64encode, b64decode
 from json import dumps, loads
-from queue import Queue
 import sys
 
 from Crypto.Cipher import AES
@@ -24,7 +28,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.widget import Widget
 from pyDH import DiffieHellman
 
-from Client.DBHandler import *
+from DBHandler import *
 
 if 'twisted.internet.reactor' in sys.modules:
     del sys.modules['twisted.internet.reactor']
@@ -227,13 +231,15 @@ class ChatApp(App):
         self.factory.client.transport.write(dumps(packet).encode())
         self.load_messages(self.destination)
 
-    def send_file(self, stream, filename):
+    def send_file(self):
+        file = filedialog.askopenfile(mode="rb")
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        content = pickle.dumps(cipher.encrypt_and_digest(stream))
+        content = pickle.dumps(cipher.encrypt_and_digest(file.read()))
         content = b64encode(content).decode()
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        filename = pickle.dumps(cipher.encrypt_and_digest(filename.encode()))
+        filename = pickle.dumps(cipher.encrypt_and_digest(file.name.encode()))
         filename = b64encode(filename).decode()
+
         packet = {
             'sender': self.username,
             'destination': self.destination,
@@ -247,15 +253,6 @@ class ChatApp(App):
         save_message(packet, self.username)
         self.factory.client.transport.write(dumps(packet).encode())
         self.load_messages(self.destination)
-
-    def attach_file(self):
-        def dismiss_popup():
-            self._popup.dismiss()
-
-        content = FileDialog(load=self.load_file, cancel=dismiss_popup)
-        self._popup = Popup(title="Load file", content=content,
-                            size_hint=(0.9, 0.9))
-        self._popup.open()
 
     """Helper methods"""
 

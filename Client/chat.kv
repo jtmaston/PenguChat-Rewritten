@@ -61,7 +61,6 @@
 	background_normal: 'assets/fallback.png'
 	background_color: 0.181, 0.566, 0.755
 
-
 <MenuButton@Button>:
     background_normal: 'assets/fallback.png'
 	background_color: 0, 0.413, 0.586
@@ -101,27 +100,6 @@
 	    Rectangle:
 	        pos: self.pos
 	        size: self.size
-
-
-<FileDialog>:
-    BoxLayout:
-        size: root.size
-        pos: root.pos
-        orientation: "vertical"
-        FileChooserListView:
-            id: filechooser
-            path: './'
-
-        BoxLayout:
-            size_hint_y: None
-            height: 30
-            Button:
-                text: "Cancel"
-                on_release: root.cancel()
-
-            Button:
-                text: "Load"
-                on_release: root.load(filechooser.path, filechooser.selection)
 
 ScreenManager:
 	transition: RiseInTransition()
@@ -293,6 +271,6 @@ ScreenManager:
                             size_hint: (0.3, 1)
                         MenuButton:
                             text: 'Attach file'
-                            on_press: app.attach_file()
+                            on_press: app.send_file()
                             size_hint: (0.3, 1)
-                            disabled: True
+                          #  disabled: True
