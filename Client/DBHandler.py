@@ -1,4 +1,3 @@
-# TODO: The database handler needs a redesign
 from datetime import datetime
 from os import makedirs, environ
 

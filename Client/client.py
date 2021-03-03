@@ -1,137 +1,32 @@
-from tkinter import filedialog
-import tkinter as tk
-tk_helper = tk.Tk()
-tk_helper.withdraw()
+from tkinter import filedialog, Tk
 
-import builtins
-import os
-import pickle
+tkWindow = Tk()
+tkWindow.withdraw()
+
+from builtins import IndexError
+from pickle import dumps as p_dumps
+from pickle import loads as p_loads
 from base64 import b64encode, b64decode
 from json import dumps, loads
-import sys
-
+from sys import modules
 from Crypto.Cipher import AES
 from kivy.app import App
-from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.clock import Clock
 from kivy.config import Config
-from kivy.graphics.context_instructions import Color
-from kivy.graphics.vertex_instructions import Rectangle
-from kivy.properties import ObjectProperty
 from kivy.support import install_twisted_reactor
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.textinput import TextInput
-from kivy.uix.widget import Widget
 from pyDH import DiffieHellman
-
 from DBHandler import *
 
-if 'twisted.internet.reactor' in sys.modules:
-    del sys.modules['twisted.internet.reactor']
+if 'twisted.internet.reactor' in modules:
+    del modules['twisted.internet.reactor']
 install_twisted_reactor()
 
-from twisted.internet import reactor, task
+from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
-
-class MessageLabelLeft(Label):
-    pass
-
-
-class MessageLabelRight(Label):
-    pass
-
-
-class MenuButton(Button):
-    pass
-
-
-class BackgroundContainer(BoxLayout):
-    pass
-
-
-class EmptyWidget(Widget):
-    pass
-
-
-class ColoredLabel(Label):
-    def __init__(self, color='gray', **kwargs):
-        super(ColoredLabel, self).__init__(**kwargs)
-
-        colors = {
-            'red': (1, 0, 0),
-            'gray': (0.4, 0.4, 0.4),
-            'menu_blue': (0, 0.413, 0.586),
-            'menu_light_blue': (0.096, 0.535, 0.656)
-        }
-
-        with self.canvas.before:
-            self.background_color = Color()
-            self.background_color.rgb = colors[color]
-            self.rect = Rectangle(pos=self.pos, size=self.size)
-        self.bind(pos=self.update_rect, size=self.update_rect)
-
-    def update_rect(self, value, new_position):
-        self.rect.pos = self.pos
-        self.rect.size = self.size
-
-
-class SidebarElement:
-    def __init__(self, username):
-        self.container = BoxLayout(orientation='horizontal')
-        self.container.username = username
-        self.yes_no_container = BoxLayout(orientation='vertical')
-
-        self.name = ColoredLabel(text=username, color='menu_light_blue')
-
-        self.accept = MenuButton(text='Accept')
-        self.decline = MenuButton(text='Decline')
-        self.yes_no_container.add_widget(self.accept)
-        self.yes_no_container.add_widget(self.decline)
-        self.container.add_widget(self.name)
-        self.container.add_widget(self.yes_no_container)
-        self.name.size_hint_x = 0.6
-        self.yes_no_container.size_hint_x = 0.4
-
-
-class ExceptionWatchdog(ExceptionHandler):
-    def handle_exception(self, inst):
-        if type(inst) == KeyboardInterrupt:
-            exit(0)
-        else:
-            Logger.exception('An error has occurred.')
-            exit(1)
-
-        return ExceptionManager.PASS
-
-
-class ConversationElement:
-
-    def __init__(self, text, side):
-
-        self.line = BoxLayout(orientation='horizontal')
-        self.left = None
-        self.right = None
-
-        if side == 'l':
-            self.left = MessageLabelLeft(text=text)
-            self.right = EmptyWidget()
-        else:
-            self.right = MessageLabelRight(text=text)
-            self.left = EmptyWidget()
-
-        self.line.add_widget(self.left)
-        self.line.add_widget(self.right)
-
-
-class FileDialog(FloatLayout):
-    load = ObjectProperty(None)
-    cancel = ObjectProperty(None)
-
+from UIElements import *
 
 class ChatApp(App):
     _popup: Popup
@@ -217,7 +112,7 @@ class ChatApp(App):
         message_text = self.root.ids.message_content.text
         self.root.ids.message_content.text = ""
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        content = pickle.dumps(cipher.encrypt_and_digest(message_text.encode()))
+        content = p_dumps(cipher.encrypt_and_digest(message_text.encode()))
         content = b64encode(content).decode()
         packet = {
             'sender': self.username,
@@ -234,10 +129,10 @@ class ChatApp(App):
     def send_file(self):
         file = filedialog.askopenfile(mode="rb")
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        content = pickle.dumps(cipher.encrypt_and_digest(file.read()))
+        content = p_dumps(cipher.encrypt_and_digest(file.read()))
         content = b64encode(content).decode()
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        filename = pickle.dumps(cipher.encrypt_and_digest(file.name.encode()))
+        filename = p_dumps(cipher.encrypt_and_digest(file.name.encode()))
         filename = b64encode(filename).decode()
 
         packet = {
@@ -262,13 +157,8 @@ class ChatApp(App):
                 self.set_sidebar_to_request_list()
             elif self.root.ids.request_button.text[0] == 'R':
                 self.set_sidebar_to_friend_list()
-        except builtins.IndexError:
+        except IndexError:
             pass
-
-    def load_file(self, filepath, full_path):
-        file = open(full_path[0], "rb")
-        self.send_file(file.read(), os.path.basename(file.name))
-        self._popup.dismiss()
 
     def secure_server(self, command):
         self.server_key = self.private.gen_shared_key(command['content'])
@@ -490,7 +380,7 @@ class ChatApp(App):
 
         for i in messages:  # decryption phase
             cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-            encrypted = pickle.loads(b64decode(i.message_data))
+            encrypted = p_loads(b64decode(i.message_data))
             try:
                 i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
