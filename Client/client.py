@@ -1,7 +1,8 @@
 from tkinter import filedialog, Tk
 
-tkWindow = Tk()
-tkWindow.withdraw()
+tkWindow = Tk()  # create a tkinter window, this is used for the native file dialogs
+tkWindow.withdraw()  # hide it for now
+# init must be done here, to ensure tkinter gets loaded b4 everything else
 
 from builtins import IndexError
 from pickle import dumps as p_dumps
@@ -21,17 +22,18 @@ from DBHandler import *
 
 if 'twisted.internet.reactor' in modules:
     del modules['twisted.internet.reactor']
-install_twisted_reactor()
+install_twisted_reactor()  # integrate twisted with kivy
 
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 from UIElements import *
 
-class ChatApp(App):
+
+class ChatApp(App):  # this is the main KV app
     _popup: Popup
 
-    def __init__(self):
+    def __init__(self):  # set the window params, as well as init some parameters
         super(ChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
         Config.set('graphics', 'height', '700')
@@ -48,33 +50,33 @@ class ChatApp(App):
 
     def build(self):
         super(ChatApp, self).build()
-        self.root.current = 'loading_screen'
+        self.root.current = 'loading_screen'  # move to the loading screen
         self.factory = ClientFactory()
-        reactor.connectTCP("localhost", 8123, self.factory)
+        reactor.connectTCP("localhost", 8123, self.factory)  # connect to the server
 
     """Server handshake, establish E2E tunnel for password exchange"""
 
     def secure(self):
-        self.private = DiffieHellman()
-        public = self.private.gen_public_key()
+        self.private = DiffieHellman()  # private key is generated
+        public = self.private.gen_public_key()  # public key is derived from it
         command_packet = {
             'command': 'secure',
             'key': public
         }
-        self.factory.client.transport.write(dumps(command_packet).encode())
+        self.factory.client.transport.write(dumps(command_packet).encode())  # send
 
     """Methods that send data to server"""
 
     def send_login_data(self):
-        pwd = self.root.ids.loginPass.text
+        pwd = self.root.ids.loginPass.text  # get username and password from the UI element
         self.username = self.root.ids.loginUsr.text
-        try:
+        try:  # this block is necessary to make sure that an E2E tunnel exists to the server
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
-        except AttributeError:
+        except AttributeError:  # if not, connection should be reset in order to get one
             self.factory.client.transport.loseConnection()
             self.fail_connection()
             return False
-        encrypted, tag = cipher.encrypt_and_digest(pwd.encode())
+        encrypted, tag = cipher.encrypt_and_digest(pwd.encode())  # this generates a digest file from the pass
         login_packet = {
             'command': 'login',
             'password': b64encode(encrypted).decode(),
@@ -83,9 +85,9 @@ class ChatApp(App):
             'isfile': False
         }
         self.root.current = 'loading_screen'
-        self.factory.client.transport.write(dumps(login_packet).encode())
+        self.factory.client.transport.write(dumps(login_packet).encode())  # finally, send it
 
-    def send_sign_up_data(self):
+    def send_sign_up_data(self):  # see above method, it's that but with extra steps
         pwd = self.root.ids.passwd.text
         pwd_r = self.root.ids.passwd_r.text
         self.username = self.root.ids.username.text
@@ -107,11 +109,12 @@ class ChatApp(App):
     def logout(self):
         self.factory.client.transport.loseConnection()
         self.root.current = 'loading_screen'
+        self.init_chat_room()   # called to clear the chat room, in anticipation of a new one being loaded
 
     def send(self):
         message_text = self.root.ids.message_content.text
-        self.root.ids.message_content.text = ""
-        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
+        self.root.ids.message_content.text = ""  # clear the message box's contents
+        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
         content = p_dumps(cipher.encrypt_and_digest(message_text.encode()))
         content = b64encode(content).decode()
         packet = {
@@ -122,15 +125,15 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
             'isfile': False
         }
-        save_message(packet, self.username)
-        self.factory.client.transport.write(dumps(packet).encode())
-        self.load_messages(self.destination)
+        save_message(packet, self.username)  # first, save it to the database.
+        self.factory.client.transport.write(dumps(packet).encode())  # send it
+        self.load_messages(self.destination)  # finally, reload the conversation, so that the new messages are displayed
 
-    def send_file(self):
-        file = filedialog.askopenfile(mode="rb")
+    def send_file(self):  # this is a bit... delicate
+        file = filedialog.askopenfile(mode="rb")  # open the file from disk, using the native filechooser
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
         content = p_dumps(cipher.encrypt_and_digest(file.read()))
-        content = b64encode(content).decode()
+        content = b64encode(content).decode()  # encryption phase is done twice, both for filename and contents
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
         filename = p_dumps(cipher.encrypt_and_digest(file.name.encode()))
         filename = b64encode(filename).decode()
@@ -143,15 +146,15 @@ class ChatApp(App):
                 {'filename': filename, 'file_contents': content}  # Done: filename needs encryption, too!
             ),
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-            'isfile': True
+            'isfile': True  # note: this flag is now tripped to true
         }
         save_message(packet, self.username)
         self.factory.client.transport.write(dumps(packet).encode())
-        self.load_messages(self.destination)
+        self.load_messages(self.destination)  # ditto above
 
     """Helper methods"""
 
-    def refresh(self):
+    def set_sidebar_tab(self):  # changes sidebar tab to either the friend list or to the requests list
         try:
             if self.root.ids.request_button.text[0] == 'F':
                 self.set_sidebar_to_request_list()
@@ -160,12 +163,12 @@ class ChatApp(App):
         except IndexError:
             pass
 
-    def secure_server(self, command):
+    def secure_server(self, command):  # part of the initial E2E
         self.server_key = self.private.gen_shared_key(command['content'])
         self.root.current = 'login'
 
-    def login_ok(self, command):
-        for screen in self.root.screens:
+    def login_ok(self, command):  # called when login succeeds, changes to the chatroom screen
+        for screen in self.root.screens:  # clean any errors that may have appeared. This is ugly. Too bad!
             if screen.name == 'login':
                 try:
                     screen.has_error
@@ -179,9 +182,9 @@ class ChatApp(App):
 
         self.root.current = 'chat_room'
 
-    def signup_ok(self, command):
+    def signup_ok(self, command):  # ditto above, only for signup
         for screen in self.root.screens:
-            if screen.name == 'signup':
+            if screen.name == 'signup':  # same ugliness
                 try:
                     screen.has_error
                 except AttributeError:
@@ -193,7 +196,8 @@ class ChatApp(App):
                                                              len(screen.children[0].children) - 1])
                 screen.has_error = False
 
-        pwd = self.pwd
+        pwd = self.pwd  # after the server verifies that the user was correctly registered, also log
+        # him in.
         try:
             cipher = AES.new(str(self.server_key).encode(), AES.MODE_SIV)
         except AttributeError:
@@ -209,15 +213,15 @@ class ChatApp(App):
             'isfile': False
         }
         self.root.current = 'loading_screen'
-        Clock.usleep(50000)
+        Clock.usleep(50000)  # give the client time to catch up and the server to log the user in
         self.factory.client.transport.write(dumps(login_packet).encode())
 
-    def got_friend_key(self, command):
+    def got_friend_key(self, command):  # called when a common key is established with a partner, after the req.
         add_common_key(command['friend'],
                        self.private.gen_shared_key(command['content']),
                        self.username)
 
-    def username_taken(self, command):
+    def username_taken(self, command):  # why... do we have this? TODO: get rid of this, this is deprecated
         for screen in self.root.screens:
             if screen.name == 'signup':
                 try:
@@ -234,7 +238,7 @@ class ChatApp(App):
 
         self.root.current = 'signup'
 
-    def login_failed(self, command):
+    def login_failed(self, command):  # called when the signup process fails.
         for screen in self.root.screens:
             if screen.name == 'login':
                 try:
@@ -251,7 +255,7 @@ class ChatApp(App):
 
         self.root.current = 'login'
 
-    def new_chat(self):
+    def new_chat(self):  # called when sending a chat request
 
         def send_chat_request(text_object):  # save the private key to be used later
             add_private_key(text_box.text, self.private.get_private_key(), self.username)
@@ -287,13 +291,13 @@ class ChatApp(App):
 
         popup.open()
 
-    def accept_request(self, button_object):
+    def accept_request(self, button_object):  # called when accepting the request
         friend = button_object.parent.parent.username  # Must move up two boxes, first parent is ver box second is hor
         friend_key = int(get_key_for_request(self.username, friend).decode())
         common_key = self.private.gen_shared_key(friend_key)
-        add_common_key(friend, common_key, self.username)
-        self.root.ids.sidebar.remove_widget(button_object.parent)
-        delete_request(friend)
+        add_common_key(friend, common_key, self.username)  # add the common key to the database
+        self.root.ids.sidebar.remove_widget(button_object.parent)  # remove the request entry in the sidebar
+        delete_request(friend)  # also delete the request from the db
         packet = {
             'sender': self.username,
             'command': 'friend_accept',
@@ -302,7 +306,7 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
             'isfile': False
         }
-        start_message = {
+        start_message = {  # ths is a blank, ignored packed designed to allow an empty chat room to be displayed
             'sender': packet['destination'],
             'destination': packet['sender'],
             'command': 'message',
@@ -310,16 +314,16 @@ class ChatApp(App):
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
             'isfile': False
         }
-        save_message(start_message, self.username)
+        save_message(start_message, self.username)  # save it
         del self.sidebar_refs[friend]
         self.set_sidebar_to_friend_list()
-        self.factory.client.transport.write(dumps(packet).encode())
+        self.factory.client.transport.write(dumps(packet).encode())  # send the acknowledgement
 
-    def accept_request_reply(self, packet):
+    def accept_request_reply(self, packet):  # called when the peer has accepted the chat request
         private = DiffieHellman()
-        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)  # quick 'n dirty fix. should be
-        common = private.gen_shared_key(int(packet['content']))  # TODO: Sometimes getting errors. Why?
-        add_common_key(packet['sender'], common, self.username)
+        private._DiffieHellman__a = get_private_key(packet['sender'], self.username)
+        common = private.gen_shared_key(int(packet['content']))  # Maybe Done: Sometimes getting errors. Why?
+        add_common_key(packet['sender'], common, self.username)  # TODO: investigate
         delete_private_key(packet['sender'], self.username)
         start_message = {
             'sender': packet['sender'],
@@ -332,22 +336,22 @@ class ChatApp(App):
         save_message(start_message, self.username)
         self.set_sidebar_to_friend_list()
 
-    def deny_request(self, button_object):
+    def deny_request(self, button_object):       # called when denying the request
         self.root.ids.sidebar.remove_widget(button_object.parent)
         del self.sidebar_refs[button_object.parent.parent.username]
         delete_request(button_object.parent.parent.username)
 
     """Loading methods"""
 
-    def set_sidebar_to_friend_list(self):
-        self.root.ids.sidebar.clear_widgets()
-        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"
-        self.root.ids.request_button.on_press = self.set_sidebar_to_request_list
+    def set_sidebar_to_friend_list(self):      # set sidebar to the friends list
+        self.root.ids.sidebar.clear_widgets()   # clear all items in the sidebar
+        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})" # change the sidebar button
+        self.root.ids.request_button.on_press = self.set_sidebar_to_request_list             # text
 
-        names = get_friends(self.username)
-        self.root.ids.sidebar.clear_widgets()
+        names = get_friends(self.username)  # call the database to see who the prev conversations were
+        self.root.ids.sidebar.clear_widgets()   # TODO: maybe this is unnecessary?
 
-        for i in names:
+        for i in names:                 # create a new button for every friend
             a = MenuButton(text=i)
             a.bind(on_press=self.show_message_box)
             self.root.ids.sidebar.rows += 1
@@ -355,7 +359,7 @@ class ChatApp(App):
             self.friend_refs.append(a)
         self.root.ids.request_button.canvas.ask_update()
 
-    def set_sidebar_to_request_list(self):
+    def set_sidebar_to_request_list(self):      # pretty much ditto set_sidebar_to_friend_list, see above
         self.root.ids.sidebar.clear_widgets()
         self.root.ids.request_button.text = "Friends"
         self.root.ids.request_button.on_press = self.set_sidebar_to_friend_list
@@ -371,24 +375,23 @@ class ChatApp(App):
             self.root.ids.sidebar.add_widget(e.container)
         self.root.ids.request_button.canvas.ask_update()
 
-    def load_messages(self, partner):
-        if len(self.conversation_refs) > 0:
+    def load_messages(self, partner):   # method to load all the messages
+        if len(self.conversation_refs) > 0: # clear the conversation
             self.root.ids.conversation.clear_widgets()
             self.conversation_refs.clear()
 
-        messages = get_messages(partner, self.username)
+        messages = get_messages(partner, self.username) # call the database to get the messages
 
-        for i in messages:  # decryption phase
+        for i in messages:  # decrypt every message
             cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
             encrypted = p_loads(b64decode(i.message_data))
             try:
                 i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
                 Logger.error(f"Application: MAC error on message id {i.id}")
-                i.message_data = "[Message decryption failed.]"  # note: maybe change to something less scary for the
-                pass  # user?
+                i.message_data = "[Message decryption failed. Most likely the key has changed]"
 
-        for i in messages:
+        for i in messages:      # add the messages to the sidebar
             if i.sender == self.username:
                 e = ConversationElement(text=i.message_data, side='r')
             else:
@@ -398,24 +401,24 @@ class ChatApp(App):
 
             self.conversation_refs.append(e)
 
-    def init_chat_room(self):
+    def init_chat_room(self):   # called upon first entering the chatroom
         self.hide_message_box()
         self.set_sidebar_to_friend_list()
         self.root.ids.conversation.clear_widgets()
 
     """Widget methods"""
 
-    def show_message_box(self, button_object):
+    def show_message_box(self, button_object):  # show the message box down TODO: text is blue. Why is text blue?
         self.destination = button_object.text
         self.root.ids.message_box.foreground_color = (0, 0, 0)
         if self.check_if_hidden(self.root.ids.message_box):
             self.show_widget(self.root.ids.message_box)
         self.load_messages(self.destination)
 
-    def hide_message_box(self):
+    def hide_message_box(self):             # hide the message box
         self.hide_widget(self.root.ids.message_box)
 
-    def hide_widget(self, widget):
+    def hide_widget(self, widget):          # helper method designed to hide widgets
         if not self.check_if_hidden(widget):
             wid = widget
             wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
@@ -424,7 +427,7 @@ class ChatApp(App):
             if widget:
                 pass
 
-    def show_widget(self, widget):
+    def show_widget(self, widget):  # reverse of above
         wid = widget
         if self.check_if_hidden(widget):
             wid.height, wid.size_hint_y, wid.opacity, wid.disabled = wid.saved_attrs
@@ -436,7 +439,7 @@ class ChatApp(App):
     """Static methods"""
 
     @staticmethod
-    def check_if_hidden(widget):
+    def check_if_hidden(widget): # needed to check if widget was hidden
         try:
             widget.saved_attrs
         except AttributeError:
@@ -444,7 +447,7 @@ class ChatApp(App):
         else:
             return True
 
-    def fail_connection(self):
+    def fail_connection(self):  # called when connection has failed
         for screen in self.root.screens:
             if screen.name == 'login':
                 try:
@@ -459,7 +462,7 @@ class ChatApp(App):
                     screen.network_error = True
         self.root.current = 'login'
 
-    def succeed_connection(self):
+    def succeed_connection(self): # called when connection succeeds, usually after a failed connection
         for screen in self.root.screens:
             if screen.name == 'login':
                 try:
@@ -477,16 +480,16 @@ class ChatApp(App):
         self.root.current = 'login'
 
 
-class Client(Protocol):
+class Client(Protocol): # defines the comms protocol
     def __init__(self):
         self.username = None
         self.destination = None
 
-    def connectionMade(self):  # note: after login fails, connectionMade may be called a full minute later.
-        Logger.info("Established connection.")  # TODO: cause is queue. More testing required.
+    def connectionMade(self):
+        Logger.info("Established connection.") # note: all queue mechanisms were removed once 1.3 rolled around
         application.succeed_connection()
 
-    def dataReceived(self, data):
+    def dataReceived(self, data):   # called when a packet is received.
         data = data.decode().split('}')
         for i in data:
             if i:
@@ -505,19 +508,18 @@ class Client(Protocol):
                     application.login_failed(command)
                 elif command['command'] == 'friend_request':
                     add_request(command)
-                    application.refresh()
+                    application.set_sidebar_tab()
                 elif command['command'] == 'friend_accept':
                     application.accept_request_reply(command)
                 elif command['command'] == 'message':
                     save_message(command, application.username)
                     application.load_messages(application.destination)
 
-
-    def connectionLost(self, reason=connectionDone):
+    def connectionLost(self, reason=connectionDone):    # called when the connection dies. RIP.
         Logger.info(reason.value)
 
 
-class ClientFactory(Factory):
+class ClientFactory(Factory):       # handles connections and communications
     def __init__(self):
         self.client = None
 

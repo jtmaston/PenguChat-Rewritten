@@ -12,14 +12,14 @@ from twisted.internet.protocol import Protocol, Factory, connectionDone
 from DBHandler import *
 
 
-def get_transportable_data(packet):
+def get_transportable_data(packet):     # helper method to get a transportable version of non-encoded data
     return json.dumps(packet).encode()
 
 
-class Server(Protocol):
+class Server(Protocol):         # describes the protocol. compared to the client, the server has relatively little to do
     def __init__(self, factory):
         self.factory = factory
-        self.endpoint_username = None
+        self.endpoint_username = None       # describes the username of the connected user
         self.key = None
 
     def connectionMade(self):

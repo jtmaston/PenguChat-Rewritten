@@ -10,6 +10,9 @@ from kivy.uix.widget import Widget
 from kivy import Logger
 
 
+# houses the UI elements that couldn't be defined in the KV
+
+
 class MessageLabelLeft(Label):
     pass
 

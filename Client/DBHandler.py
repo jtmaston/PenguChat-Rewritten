@@ -13,8 +13,10 @@ from kivy import Logger
 db = SqliteDatabase(path + '/messages.db')
 
 
+# the peewee framework was used to streamline database ops.
+
 class CommonKeys(Model):
-    added_by = CharField(100)  # identifies who added the message to the DB
+    added_by = CharField(100)
     partner_name = CharField(100)
     common_key = BlobField(null=True)
     key_updated = DateTimeField(null=True)
@@ -24,7 +26,7 @@ class CommonKeys(Model):
 
 
 class PrivateKeys(Model):
-    added_by = CharField(100)  # identifies who added the message to the DB
+    added_by = CharField(100)
     partner_name = CharField(100)
     self_private_key = BlobField(null=True)
 
@@ -33,7 +35,7 @@ class PrivateKeys(Model):
 
 
 class Messages(Model):
-    added_by = CharField(100)  # identifies who added the message to the DB
+    added_by = CharField(100)
     sender = CharField(100)
     destination = CharField(100)
     message_data = BlobField()
@@ -53,7 +55,7 @@ class Requests(Model):
         database = db
 
 
-def add_common_key(partner_name, common_key, added_by):
+def add_common_key(partner_name, common_key, added_by):     # add a common key to the database
     try:
         query = CommonKeys.get(CommonKeys.partner_name == partner_name)
     except CommonKeys.DoesNotExist:
@@ -72,7 +74,7 @@ def add_common_key(partner_name, common_key, added_by):
         query.save()
 
 
-def get_common_key(partner_name, username):
+def get_common_key(partner_name, username): # retrieve said common key
     try:
         query = CommonKeys.get(
             (CommonKeys.partner_name == partner_name) &
@@ -84,7 +86,7 @@ def get_common_key(partner_name, username):
         return query.common_key
 
 
-def add_private_key(partner_name, private_key, username):
+def add_private_key(partner_name, private_key, username):   # ditto above idk
     private_key = str(private_key).encode()
     try:
         key = PrivateKeys.get(PrivateKeys.partner_name == partner_name)
