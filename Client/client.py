@@ -1,3 +1,4 @@
+from os.path import basename
 from tkinter import filedialog, Tk
 
 tkWindow = Tk()  # create a tkinter window, this is used for the native file dialogs
@@ -109,48 +110,34 @@ class ChatApp(App):  # this is the main KV app
     def logout(self):
         self.factory.client.transport.loseConnection()
         self.root.current = 'loading_screen'
-        self.init_chat_room()   # called to clear the chat room, in anticipation of a new one being loaded
+        self.init_chat_room()  # called to clear the chat room, in anticipation of a new one being loaded
 
-    def send(self):
+    def send(self, isfile=False, file=None):
         message_text = self.root.ids.message_content.text
         self.root.ids.message_content.text = ""  # clear the message box's contents
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
-        content = p_dumps(cipher.encrypt_and_digest(message_text.encode()))
-        content = b64encode(content).decode()
+        if not isfile:
+            content = p_dumps(cipher.encrypt_and_digest(message_text.encode()))
+            content = b64encode(content).decode()
+        else:
+            file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
+            content = p_dumps(cipher.encrypt_and_digest(file_data))
+            content = b64encode(content).decode()
         packet = {
             'sender': self.username,
             'destination': self.destination,
             'command': 'message',
             'content': content,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-            'isfile': False
+            'isfile': False if not isfile else True
         }
         save_message(packet, self.username)  # first, save it to the database.
         self.factory.client.transport.write(dumps(packet).encode())  # send it
         self.load_messages(self.destination)  # finally, reload the conversation, so that the new messages are displayed
 
-    def send_file(self):  # this is a bit... delicate
-        file = filedialog.askopenfile(mode="rb")  # open the file from disk, using the native filechooser
-        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        content = p_dumps(cipher.encrypt_and_digest(file.read()))
-        content = b64encode(content).decode()  # encryption phase is done twice, both for filename and contents
-        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
-        filename = p_dumps(cipher.encrypt_and_digest(file.name.encode()))
-        filename = b64encode(filename).decode()
-
-        packet = {
-            'sender': self.username,
-            'destination': self.destination,
-            'command': 'message',
-            'content': dumps(
-                {'filename': filename, 'file_contents': content}  # Done: filename needs encryption, too!
-            ),
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-            'isfile': True  # note: this flag is now tripped to true
-        }
-        save_message(packet, self.username)
-        self.factory.client.transport.write(dumps(packet).encode())
-        self.load_messages(self.destination)  # ditto above
+    def attach_file(self):  # function for attaching and then sending file
+        file = filedialog.askopenfile(mode="rb")
+        self.send(isfile=True, file=file)
 
     """Helper methods"""
 
@@ -221,7 +208,7 @@ class ChatApp(App):  # this is the main KV app
                        self.private.gen_shared_key(command['content']),
                        self.username)
 
-    def username_taken(self, command):  # why... do we have this? TODO: get rid of this, this is deprecated
+    def username_taken(self, command):  # called to change the screen to an errored state
         for screen in self.root.screens:
             if screen.name == 'signup':
                 try:
@@ -336,22 +323,22 @@ class ChatApp(App):  # this is the main KV app
         save_message(start_message, self.username)
         self.set_sidebar_to_friend_list()
 
-    def deny_request(self, button_object):       # called when denying the request
+    def deny_request(self, button_object):  # called when denying the request
         self.root.ids.sidebar.remove_widget(button_object.parent)
         del self.sidebar_refs[button_object.parent.parent.username]
         delete_request(button_object.parent.parent.username)
 
     """Loading methods"""
 
-    def set_sidebar_to_friend_list(self):      # set sidebar to the friends list
-        self.root.ids.sidebar.clear_widgets()   # clear all items in the sidebar
-        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})" # change the sidebar button
-        self.root.ids.request_button.on_press = self.set_sidebar_to_request_list             # text
+    def set_sidebar_to_friend_list(self):  # set sidebar to the friends list
+        self.root.ids.sidebar.clear_widgets()  # clear all items in the sidebar
+        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"  # change the sidebar button
+        self.root.ids.request_button.on_press = self.set_sidebar_to_request_list  # text
 
         names = get_friends(self.username)  # call the database to see who the prev conversations were
-        self.root.ids.sidebar.clear_widgets()   # TODO: maybe this is unnecessary?
+        self.root.ids.sidebar.clear_widgets()  # TODO: maybe this is unnecessary?
 
-        for i in names:                 # create a new button for every friend
+        for i in names:  # create a new button for every friend
             a = MenuButton(text=i)
             a.bind(on_press=self.show_message_box)
             self.root.ids.sidebar.rows += 1
@@ -359,7 +346,7 @@ class ChatApp(App):  # this is the main KV app
             self.friend_refs.append(a)
         self.root.ids.request_button.canvas.ask_update()
 
-    def set_sidebar_to_request_list(self):      # pretty much ditto set_sidebar_to_friend_list, see above
+    def set_sidebar_to_request_list(self):  # pretty much ditto set_sidebar_to_friend_list, see above
         self.root.ids.sidebar.clear_widgets()
         self.root.ids.request_button.text = "Friends"
         self.root.ids.request_button.on_press = self.set_sidebar_to_friend_list
@@ -375,33 +362,38 @@ class ChatApp(App):  # this is the main KV app
             self.root.ids.sidebar.add_widget(e.container)
         self.root.ids.request_button.canvas.ask_update()
 
-    def load_messages(self, partner):   # method to load all the messages
-        if len(self.conversation_refs) > 0: # clear the conversation
+    def load_messages(self, partner):  # method to load all the messages
+        if len(self.conversation_refs) > 0:  # clear the conversation
             self.root.ids.conversation.clear_widgets()
             self.conversation_refs.clear()
 
-        messages = get_messages(partner, self.username) # call the database to get the messages
+        messages = get_messages(partner, self.username)  # call the database to get the messages
 
-        for i in messages:  # decrypt every message
-            cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-            encrypted = p_loads(b64decode(i.message_data))
-            try:
-                i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
-            except ValueError:
-                Logger.error(f"Application: MAC error on message id {i.id}")
-                i.message_data = "[Message decryption failed. Most likely the key has changed]"
+        for i in messages:  # decrypt every message and then display it
+            if not i.isfile:
+                cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
+                encrypted = p_loads(b64decode(i.message_data))
+                try:
+                    i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
+                except ValueError:
+                    Logger.error(f"Application: MAC error on message id {i.id}")
+                    i.message_data = "[Message decryption failed. Most likely the key has changed]"
+                finally:
+                    if i.sender == self.username:
+                        e = ConversationElement(text=i.message_data, side='r')
+                    else:
+                        e = ConversationElement(text=i.message_data, side='l')
+                    self.root.ids.conversation.rows += 1
+                    self.root.ids.conversation.add_widget(e.line)
 
-        for i in messages:      # add the messages to the sidebar
-            if i.sender == self.username:
-                e = ConversationElement(text=i.message_data, side='r')
+                    self.conversation_refs.append(e)
             else:
-                e = ConversationElement(text=i.message_data, side='l')
-            self.root.ids.conversation.rows += 1
-            self.root.ids.conversation.add_widget(e.line)
+                encrypted = p_loads(b64decode(i.message_data))
+                cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
+                file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
 
-            self.conversation_refs.append(e)
 
-    def init_chat_room(self):   # called upon first entering the chatroom
+    def init_chat_room(self):  # called upon first entering the chatroom
         self.hide_message_box()
         self.set_sidebar_to_friend_list()
         self.root.ids.conversation.clear_widgets()
@@ -415,10 +407,10 @@ class ChatApp(App):  # this is the main KV app
             self.show_widget(self.root.ids.message_box)
         self.load_messages(self.destination)
 
-    def hide_message_box(self):             # hide the message box
+    def hide_message_box(self):  # hide the message box
         self.hide_widget(self.root.ids.message_box)
 
-    def hide_widget(self, widget):          # helper method designed to hide widgets
+    def hide_widget(self, widget):  # helper method designed to hide widgets
         if not self.check_if_hidden(widget):
             wid = widget
             wid.saved_attrs = wid.height, wid.size_hint_y, wid.opacity, wid.disabled
@@ -439,7 +431,7 @@ class ChatApp(App):  # this is the main KV app
     """Static methods"""
 
     @staticmethod
-    def check_if_hidden(widget): # needed to check if widget was hidden
+    def check_if_hidden(widget):  # needed to check if widget was hidden
         try:
             widget.saved_attrs
         except AttributeError:
@@ -462,7 +454,7 @@ class ChatApp(App):  # this is the main KV app
                     screen.network_error = True
         self.root.current = 'login'
 
-    def succeed_connection(self): # called when connection succeeds, usually after a failed connection
+    def succeed_connection(self):  # called when connection succeeds, usually after a failed connection
         for screen in self.root.screens:
             if screen.name == 'login':
                 try:
@@ -480,16 +472,16 @@ class ChatApp(App):  # this is the main KV app
         self.root.current = 'login'
 
 
-class Client(Protocol): # defines the comms protocol
+class Client(Protocol):  # defines the comms protocol
     def __init__(self):
         self.username = None
         self.destination = None
 
     def connectionMade(self):
-        Logger.info("Established connection.") # note: all queue mechanisms were removed once 1.3 rolled around
+        Logger.info("Established connection.")  # note: all queue mechanisms were removed once 1.3 rolled around
         application.succeed_connection()
 
-    def dataReceived(self, data):   # called when a packet is received.
+    def dataReceived(self, data):  # called when a packet is received.
         data = data.decode().split('}')
         for i in data:
             if i:
@@ -515,11 +507,11 @@ class Client(Protocol): # defines the comms protocol
                     save_message(command, application.username)
                     application.load_messages(application.destination)
 
-    def connectionLost(self, reason=connectionDone):    # called when the connection dies. RIP.
+    def connectionLost(self, reason=connectionDone):  # called when the connection dies. RIP.
         Logger.info(reason.value)
 
 
-class ClientFactory(Factory):       # handles connections and communications
+class ClientFactory(Factory):  # handles connections and communications
     def __init__(self):
         self.client = None
 

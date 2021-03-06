@@ -139,7 +139,7 @@ def get_messages(partner, username):
         ((Messages.destination == partner) & (Messages.sender == username)) |
         ((Messages.sender == partner) & (Messages.destination == username))
     ).order_by(Messages.timestamp)
-    return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username and i.isfile == False]
+    return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username]
 
 
 def save_message(packet, username):
