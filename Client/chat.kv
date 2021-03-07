@@ -3,11 +3,15 @@
 #:import Window kivy.core.window.Window
 #:import Factory kivy.factory.Factory
 #:import utils kivy.utils
+#:import math math
+
 
 
 <MessageLabelLeft>
 	size_hint_y: None
-	size_hint_x: 1
+	size_hint_x: None
+
+	width: 100
 	padding: (20, 5)
     height: self.texture_size[1]
     text_size: self.width, None
@@ -21,10 +25,18 @@
             pos: self.pos
 
 <MessageLabelRight>
+	size_hint: None, None
+	padding: 10, 5
+	spacing: 0, 0
+    size: self.texture_size
+
+
+<RightButton>
 	size_hint_y: None
-	size_hint_x: 1
+	size_hint_x: None
 	padding: (20, 5)
-    height: self.texture_size[1]
+    height: 40
+    width: 40
     text_size: self.width, None
 
     canvas.before:
@@ -61,7 +73,7 @@
 	background_normal: 'assets/fallback.png'
 	background_color: 0.181, 0.566, 0.755
 
-<MenuButton@Button>:
+<MenuButton>:
     background_normal: 'assets/fallback.png'
 	background_color: 0, 0.413, 0.586
 	canvas.before:
@@ -93,7 +105,7 @@
 			pos: self.pos
 			size: self.size
 
-<BackgroundContainer@BoxLayout>
+<BackgroundContainer>
 	canvas.before:
 	    Color:
 	        rgb: 0, 0.213, 0.286
@@ -208,22 +220,25 @@ ScreenManager:
 		    BackgroundContainer:
 		        padding: (5, 4, 5, 0)
                 id: top_bar
-                height: 60
+                height: 40
                 orientation: 'horizontal'
                 size_hint: (1, None)
                 spacing: 0
 
                 MenuButton:
                     id: request_button
-                    size_hint_x: 0.2
+                    size_hint_x: 0.3
 
                 MenuButton:
                     text: 'Logout'
-                    size_hint_x: 0.2
+                    size_hint_x: 0.3
                     on_press: app.logout()
                 MenuButton:
-                    text: 'Start a new chat!'
+                    text: 'New chat'
+                    size_hint_x: 0.3
                     on_press: app.new_chat()
+                Widget:
+                    size_hint_x: 1
 
 
             BackgroundContainer:
@@ -246,31 +261,40 @@ ScreenManager:
 							pos: self.pos
 							size: self.size
 					ScrollView:
-						ListGridLayout:
+					    do_scroll_x: False
+					    do_scroll_y: True
+
+						GridLayout
 							id: conversation
+							size_hint_y: None
+                            cols: 1
+                            rows: 0
+                            spacing: 0, 10
+                            padding: 0, 10
 
                     BoxLayout:
                         padding: 0
                         spacing: 0
                         id: message_box
-                        height: 90
+                        height: 50
                         orientation: 'horizontal'
                         size_hint: (1, None)
                         TextInput:
+                            padding: 20, 0
                             canvas.before:
                                 Color:
                                     rgb: 0, 0.213, 0.286
                                 Line:
-                                    width: 2
+                                    width: 0.5
                                     rectangle: self.x, self.y, self.width, self.height
                             id: message_content
                             on_text_validate: app.send()
                         MenuButton:
                             text: 'Send'
                             on_press: app.send()
-                            size_hint: (0.3, 1)
+                            size_hint: (0.15, 1)
                         MenuButton:
-                            text: 'Attach file'
+                            text: 'Attach'
                             on_press: app.attach_file()
-                            size_hint: (0.3, 1)
+                            size_hint: (0.15, 1)
                           #  disabled: True

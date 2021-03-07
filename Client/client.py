@@ -53,6 +53,7 @@ class ChatApp(App):  # this is the main KV app
         super(ChatApp, self).build()
         self.root.current = 'loading_screen'  # move to the loading screen
         self.factory = ClientFactory()
+        self.root.ids.conversation.bind(minimum_height=self.root.ids.conversation.setter('height'))
         reactor.connectTCP("localhost", 8123, self.factory)  # connect to the server
 
     """Server handshake, establish E2E tunnel for password exchange"""
@@ -136,6 +137,7 @@ class ChatApp(App):  # this is the main KV app
         self.load_messages(self.destination)  # finally, reload the conversation, so that the new messages are displayed
 
     def attach_file(self):  # function for attaching and then sending file
+        # TODO: implement "cancel" option, right now just crashes.
         file = filedialog.askopenfile(mode="rb")
         self.send(isfile=True, file=file)
 
@@ -336,7 +338,6 @@ class ChatApp(App):  # this is the main KV app
         self.root.ids.request_button.on_press = self.set_sidebar_to_request_list  # text
 
         names = get_friends(self.username)  # call the database to see who the prev conversations were
-        self.root.ids.sidebar.clear_widgets()  # TODO: maybe this is unnecessary?
 
         for i in names:  # create a new button for every friend
             a = MenuButton(text=i)
@@ -366,13 +367,14 @@ class ChatApp(App):  # this is the main KV app
         if len(self.conversation_refs) > 0:  # clear the conversation
             self.root.ids.conversation.clear_widgets()
             self.conversation_refs.clear()
+            self.root.ids.conversation.rows = 0
 
         messages = get_messages(partner, self.username)  # call the database to get the messages
 
         for i in messages:  # decrypt every message and then display it
+            cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
+            encrypted = p_loads(b64decode(i.message_data))
             if not i.isfile:
-                cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-                encrypted = p_loads(b64decode(i.message_data))
                 try:
                     i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
                 except ValueError:
@@ -383,15 +385,20 @@ class ChatApp(App):  # this is the main KV app
                         e = ConversationElement(text=i.message_data, side='r')
                     else:
                         e = ConversationElement(text=i.message_data, side='l')
-                    self.root.ids.conversation.rows += 1
-                    self.root.ids.conversation.add_widget(e.line)
-
-                    self.conversation_refs.append(e)
             else:
-                encrypted = p_loads(b64decode(i.message_data))
-                cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-                file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
-
+                try:
+                    file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
+                except ValueError:
+                    Logger.error(f"Application: MAC error on message id {i.id}")
+                    file_data['filename'] = "[Message decryption failed. Most likely the key has changed]"
+                finally:
+                    if i.sender == self.username:
+                        e = ConversationElement(side='r', isfile=True, filedata=file_data)
+                    else:
+                        e = ConversationElement(side='l', isfile=True, filedata=file_data)
+            self.root.ids.conversation.rows += 1
+            self.root.ids.conversation.add_widget(e.line)
+            self.conversation_refs.append(e)
 
     def init_chat_room(self):  # called upon first entering the chatroom
         self.hide_message_box()
