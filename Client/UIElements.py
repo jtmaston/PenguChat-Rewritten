@@ -13,14 +13,10 @@ colors = {
     'red': (1, 0, 0),
     'gray': (0.4, 0.4, 0.4),
     'menu_blue': (0, 0.413, 0.586),
-    'menu_light_blue': (0.096, 0.535, 0.656)
+    'menu_light_blue': (0.096, 0.535, 0.656),
+    'outgoing_message': (0.096, 0.535, 0.656),
+    'incoming_message': (0, 0.213, 0.28)
 }
-
-
-class MessageLabelLeft(Label):
-    pass
-
-
 class RightFile(Button):
     def __init__(self, filedata=None, **kwargs):
         super(RightFile, self).__init__(**kwargs)
@@ -67,22 +63,27 @@ class ColoredLabel(Label):
         self.rect.size = self.size
 
 
-class MessageLabelRight(Label):
-    def __init__(self, **kwargs):
-        super(MessageLabelRight, self).__init__(**kwargs)
+class MessageBubble(Label):
+    def __init__(self, side, **kwargs):
+        super(MessageBubble, self).__init__(**kwargs)
         with self.canvas.before:
             self.background_color = Color()
-            self.background_color.rgb = (0.096, 0.535, 0.656)
+            self.background_color.rgb = (0, 0, 0)
             self.rect = RoundedRectangle(pos=self.pos, size=self.texture_size)
             self.rect.radius = [(15, 15), (15, 15), (15, 15), (15, 15)]
+            self.side = side
+
         self.bind(pos=self.update_rect)
 
     def update_rect(self, value, new_position):
-        self.rect.pos = (self.parent.width - self.width, self.pos[1])
+        self.rect.pos = (self.parent.width - self.width, self.pos[1]) \
+                if self.side == 'r' \
+                else self.pos
         self.rect.size = self.size
-        if self.width > self.parent.width / 2:
-            self.text_size[0] = self.parent.width / 2
+        if self.width > 0.75 * self.parent.width:
+            self.text_size[0] = 0.75 * self.parent.width
         self.parent.height = self.height
+
 
 class SidebarElement:
     def __init__(self, username):
@@ -122,10 +123,12 @@ class ConversationElement:
         self.line.size_hint_y = None
 
         if side == 'l':
-            self.left = MessageLabelLeft(text=text) if not isfile else LeftFile(filedata)
+            self.left = MessageBubble(text=text, side=side) if not isfile else LeftFile(filedata)
+            self.left.background_color.rgb = colors['incoming_message']
             self.right = EmptyWidget()
         else:
-            self.right = MessageLabelRight(text=text) if not isfile else MenuButton(text=filedata['filename'])
+            self.right = MessageBubble(text=text, side=side) if not isfile else MenuButton(text=filedata['filename'])
+            self.right.background_color.rgb = colors['outgoing_message']
             self.left = EmptyWidget()
 
         self.line.add_widget(self.left)

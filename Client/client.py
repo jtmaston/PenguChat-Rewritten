@@ -31,6 +31,8 @@ from twisted.internet.protocol import ClientFactory as Factory
 from UIElements import *
 
 
+
+
 class ChatApp(App):  # this is the main KV app
     _popup: Popup
 
@@ -38,6 +40,7 @@ class ChatApp(App):  # this is the main KV app
         super(ChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
         Config.set('graphics', 'height', '700')
+        #Config.set('graphics', 'fullscreen', '0')
         self.username = None
         self.destination = None
         self.private = None
@@ -137,9 +140,9 @@ class ChatApp(App):  # this is the main KV app
         self.load_messages(self.destination)  # finally, reload the conversation, so that the new messages are displayed
 
     def attach_file(self):  # function for attaching and then sending file
-        # TODO: implement "cancel" option, right now just crashes.
         file = filedialog.askopenfile(mode="rb")
-        self.send(isfile=True, file=file)
+        if file is not None:
+            self.send(isfile=True, file=file)
 
     """Helper methods"""
 
@@ -334,7 +337,7 @@ class ChatApp(App):  # this is the main KV app
 
     def set_sidebar_to_friend_list(self):  # set sidebar to the friends list
         self.root.ids.sidebar.clear_widgets()  # clear all items in the sidebar
-        self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"  # change the sidebar button
+        #self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"  # change the sidebar button
         self.root.ids.request_button.on_press = self.set_sidebar_to_request_list  # text
 
         names = get_friends(self.username)  # call the database to see who the prev conversations were
@@ -445,6 +448,18 @@ class ChatApp(App):  # this is the main KV app
             return False
         else:
             return True
+
+    @staticmethod
+    def disable_fullscreen():
+        #Config.set('graphics', 'fullscreen', '0')
+        # Config.write()
+        pass
+
+    @staticmethod
+    def enable_fullscreen():
+        #Config.set('graphics', 'fullscreen', '1')
+       # Config.write()
+        pass
 
     def fail_connection(self):  # called when connection has failed
         for screen in self.root.screens:

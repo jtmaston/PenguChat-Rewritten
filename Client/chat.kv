@@ -5,26 +5,7 @@
 #:import utils kivy.utils
 #:import math math
 
-
-
-<MessageLabelLeft>
-	size_hint_y: None
-	size_hint_x: None
-
-	width: 100
-	padding: (20, 5)
-    height: self.texture_size[1]
-    text_size: self.width, None
-
-    canvas.before:
-        Color:
-            rgb: 0, 0.213, 0.28
-        RoundedRectangle:
-            radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
-            size: self.texture_size
-            pos: self.pos
-
-<MessageLabelRight>
+<MessageBubble>
 	size_hint: None, None
 	padding: 10, 5
 	spacing: 0, 0
@@ -46,22 +27,6 @@
             radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
             size: self.texture_size
             pos: self.pos
-
-<LoginGridLayout@GridLayout>:
-	rows: 3
-	cols: 2
-	spacing: 10
-	row_default_height: 90
-	row_force_default: True
-
-<ListGridLayout@GridLayout>:
-    size_hint_y: None
-    height: self.minimum_height
-    cols: 1
-    rows: 0
-    row_default_height: '100dp'
-    row_force_default: True
-    spacing: 0, 5
 
 <Label>:
 	font_size: 25
@@ -131,7 +96,12 @@ ScreenManager:
 		    padding: 10
 	        spacing: 10
 			orientation: 'vertical'
-			LoginGridLayout:
+			GridLayout:
+			    rows: 3
+                cols: 2
+                spacing: 10
+                row_default_height: 90
+                row_force_default: True
 				LoginLabel:
 					text: 'Username:'
 
@@ -170,7 +140,12 @@ ScreenManager:
             padding: 10
 	        spacing: 10
 			orientation: 'vertical'
-			LoginGridLayout:
+			GridLayout:
+			    rows: 3
+                cols: 2
+                spacing: 10
+                row_default_height: 90
+                row_force_default: True
 				LoginLabel:
 					text: 'Username:'
 
@@ -217,38 +192,55 @@ ScreenManager:
 		name: 'chat_room'
 		BoxLayout:
 		    orientation: 'vertical'
-		    BackgroundContainer:
-		        padding: (5, 4, 5, 0)
-                id: top_bar
-                height: 40
-                orientation: 'horizontal'
-                size_hint: (1, None)
-                spacing: 0
-
-                MenuButton:
-                    id: request_button
-                    size_hint_x: 0.3
-
-                MenuButton:
-                    text: 'Logout'
-                    size_hint_x: 0.3
-                    on_press: app.logout()
-                MenuButton:
-                    text: 'New chat'
-                    size_hint_x: 0.3
-                    on_press: app.new_chat()
-                Widget:
-                    size_hint_x: 1
-
-
             BackgroundContainer:
                 orientation: 'horizontal'
                 padding: 5
                 spacing: 5
-                ScrollView:
+                BoxLayout:
                     size_hint_x: 0.3
-	                ListGridLayout:
-	                    id: sidebar
+                    orientation: 'vertical'
+
+                    BackgroundContainer:
+                        id: top_bar
+                        height: 40
+                        orientation: 'horizontal'
+                        size_hint: (1, None)
+                        padding: 0, 0, 0, 2
+
+                        MenuButton:
+                            id: request_button
+                            width: 40
+                            Image:
+                                source: 'Assets/requests.png'
+                                size: self.parent.size
+                                pos: self.parent.pos
+
+                        MenuButton:
+                            width: 40
+                            on_press: app.logout()
+                            Image:
+                                source: 'Assets/logout.png'
+                                size: self.parent.size
+                                pos: self.parent.pos
+                        MenuButton:
+                            width: 40
+                            on_press: app.new_chat()
+                            Image:
+                                source: 'Assets/new_convo.png'
+                                size: self.parent.size
+                                pos: self.parent.pos
+
+                    ScrollView:
+
+                        GridLayout:
+                            size_hint_y: None
+                            height: self.minimum_height
+                            cols: 1
+                            rows: 0
+                            row_default_height: '100dp'
+                            row_force_default: True
+                            spacing: 0, 5
+                            id: sidebar
 
                 BoxLayout:
                     padding: (1,0,0,0)
@@ -290,11 +282,17 @@ ScreenManager:
                             id: message_content
                             on_text_validate: app.send()
                         MenuButton:
-                            text: 'Send'
                             on_press: app.send()
                             size_hint: (0.15, 1)
+                            Image:
+                                source: 'Assets/send.png'
+                                size: self.parent.size
+                                pos: self.parent.pos
                         MenuButton:
-                            text: 'Attach'
                             on_press: app.attach_file()
                             size_hint: (0.15, 1)
+                            Image:
+                                source: 'Assets/attach.png'
+                                size: self.parent.size
+                                pos: self.parent.pos
                           #  disabled: True
