@@ -11,6 +11,14 @@
 	spacing: 0, 0
     size: self.texture_size
 
+<FileBubble>
+    size_hint: None, None
+	size: 120, 120
+
+	Image:
+	    source: 'Assets/file.png'
+	    size: self.parent.size
+        pos: self.parent.pos[0], self.parent.pos[1] + 10
 
 <RightButton>
 	size_hint_y: None
@@ -210,10 +218,16 @@ ScreenManager:
                         MenuButton:
                             id: request_button
                             width: 40
+                            text: '2\n'
+                            line_height:0.4
+                            bold: True
+                            font_size: 15
+                            halign: 'center'
                             Image:
+                                id: req
                                 source: 'Assets/requests.png'
                                 size: self.parent.size
-                                pos: self.parent.pos
+                                pos: (self.parent.pos[0] - 1, self.parent.pos[1])
 
                         MenuButton:
                             width: 40
@@ -280,9 +294,9 @@ ScreenManager:
                                     width: 0.5
                                     rectangle: self.x, self.y, self.width, self.height
                             id: message_content
-                            on_text_validate: app.send()
+                            on_text_validate: app.send_text()
                         MenuButton:
-                            on_press: app.send()
+                            on_press: app.send_text()
                             size_hint: (0.15, 1)
                             Image:
                                 source: 'Assets/send.png'

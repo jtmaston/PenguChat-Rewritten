@@ -29,7 +29,7 @@ class MessageCache(Model):
     sender = CharField(100)
     destination = CharField(100)
     command = CharField(100)
-    content = TextField()
+    content = BlobField()
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
     isfile = BooleanField()

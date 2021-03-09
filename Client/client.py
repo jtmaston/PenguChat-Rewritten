@@ -1,3 +1,6 @@
+from functools import partial
+from io import BytesIO
+from itertools import islice
 from os.path import basename
 from tkinter import filedialog, Tk
 
@@ -10,7 +13,7 @@ from pickle import dumps as p_dumps
 from pickle import loads as p_loads
 from base64 import b64encode, b64decode
 from json import dumps, loads
-from sys import modules
+from sys import modules, getsizeof
 from Crypto.Cipher import AES
 from kivy.app import App
 from kivy.clock import Clock
@@ -28,9 +31,15 @@ install_twisted_reactor()  # integrate twisted with kivy
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
+from twisted.protocols.basic import FileSender
 from UIElements import *
 
 
+class FauxMessage:
+    def __init__(self):
+        self.isfile = None
+        self.message_data = None
+        self.sender = None
 
 
 class ChatApp(App):  # this is the main KV app
@@ -40,7 +49,6 @@ class ChatApp(App):  # this is the main KV app
         super(ChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
         Config.set('graphics', 'height', '700')
-        #Config.set('graphics', 'fullscreen', '0')
         self.username = None
         self.destination = None
         self.private = None
@@ -49,6 +57,8 @@ class ChatApp(App):  # this is the main KV app
         self.sidebar_refs = dict()
         self.conversation_refs = []
         self.friend_refs = []
+        self.pwd = None
+        self.incoming = {}
 
     """App loading section"""
 
@@ -57,6 +67,7 @@ class ChatApp(App):  # this is the main KV app
         self.root.current = 'loading_screen'  # move to the loading screen
         self.factory = ClientFactory()
         self.root.ids.conversation.bind(minimum_height=self.root.ids.conversation.setter('height'))
+        self.root.ids.request_button.tab = 'F'
         reactor.connectTCP("localhost", 8123, self.factory)  # connect to the server
 
     """Server handshake, establish E2E tunnel for password exchange"""
@@ -68,7 +79,8 @@ class ChatApp(App):  # this is the main KV app
             'command': 'secure',
             'key': public
         }
-        self.factory.client.transport.write(dumps(command_packet).encode())  # send
+        self.factory.client.transport.write((dumps(command_packet) + '\r\n').encode())  # send
+        print(f" <- {dumps(command_packet).encode()}")
 
     """Methods that send data to server"""
 
@@ -90,7 +102,8 @@ class ChatApp(App):  # this is the main KV app
             'isfile': False
         }
         self.root.current = 'loading_screen'
-        self.factory.client.transport.write(dumps(login_packet).encode())  # finally, send it
+        self.factory.client.transport.write((dumps(login_packet) + '\r\n').encode())  # finally, send it
+        print(f" <- {dumps(login_packet).encode()}")
 
     def send_sign_up_data(self):  # see above method, it's that but with extra steps
         pwd = self.root.ids.passwd.text
@@ -109,48 +122,90 @@ class ChatApp(App):  # this is the main KV app
                 'sender': self.username
             }
             self.root.current = 'loading_screen'
-            self.factory.client.transport.write(dumps(signup_packet).encode())
+            self.factory.client.transport.write((dumps(signup_packet) + '\r\n').encode())
+            print(f" <- {dumps(signup_packet).encode()}")
 
     def logout(self):
         self.factory.client.transport.loseConnection()
         self.root.current = 'loading_screen'
         self.init_chat_room()  # called to clear the chat room, in anticipation of a new one being loaded
 
-    def send(self, isfile=False, file=None):
+    def send_file(self):
+        file = open(self.file_in_queue, "rb")
+        file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
+        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
+        blob = p_dumps(cipher.encrypt_and_digest(file_data)) + '\r\n'.encode()
+        blob = BytesIO(blob)
+        sender = FileSender()
+        sender.CHUNK_SIZE = 2 ** 16
+        sender.beginFileTransfer(blob, self.factory.client.transport)
+
+    def send_text(self):
         message_text = self.root.ids.message_content.text
         self.root.ids.message_content.text = ""  # clear the message box's contents
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
-        if not isfile:
-            content = p_dumps(cipher.encrypt_and_digest(message_text.encode()))
-            content = b64encode(content).decode()
-        else:
-            file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
-            content = p_dumps(cipher.encrypt_and_digest(file_data))
-            content = b64encode(content).decode()
+        content = p_dumps(cipher.encrypt_and_digest(message_text.encode()))
+        content = b64encode(content).decode()
         packet = {
             'sender': self.username,
             'destination': self.destination,
             'command': 'message',
             'content': content,
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-            'isfile': False if not isfile else True
+            'isfile': False,
         }
-        save_message(packet, self.username)  # first, save it to the database.
-        self.factory.client.transport.write(dumps(packet).encode())  # send it
-        self.load_messages(self.destination)  # finally, reload the conversation, so that the new messages are displayed
+
+        f = FauxMessage()
+        f.isfile = packet['isfile']
+        f.message_data = packet['content']
+        f.sender = packet['sender']
+
+        self.add_bubble_to_conversation(f, self.destination)
+        self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
+        print(f" <- {dumps(packet).encode()}")
+        """else:
+
+            def read_bytes_from_file(f, chunk_size=8100):
+                with open(f, 'rb') as f:
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if chunk:
+                            yield chunk
+                        else:
+                            break
+
+            cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
+            file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
+            content = p_dumps(cipher.encrypt_and_digest(file_data))
+            cached = open(user_data_dir("PenguChat") + '/cache.bin', 'wb+')
+            cached.write(content)
+            cached.close()
+            for byte_chunk in read_bytes_from_file(user_data_dir("PenguChat") + '/cache.bin'):
+                self.factory.client.transport.write(byte_chunk)
+            self.factory.client.transport.write('\r\n'.encode())"""
 
     def attach_file(self):  # function for attaching and then sending file
         file = filedialog.askopenfile(mode="rb")
-        if file is not None:
-            self.send(isfile=True, file=file)
+        self.file_in_queue = file.name
+        packet = {
+            'sender': self.username,
+            'destination': self.destination,
+            'command': 'prepare_for_file',
+            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+            'requested': file.name
+        }
+        self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
+        print(f" <- {dumps(packet).encode()}")
 
     """Helper methods"""
 
     def set_sidebar_tab(self):  # changes sidebar tab to either the friend list or to the requests list
         try:
-            if self.root.ids.request_button.text[0] == 'F':
+            if self.root.ids.request_button.tab == 'F':
+                self.root.ids.request_button.tab = 'R'
                 self.set_sidebar_to_request_list()
-            elif self.root.ids.request_button.text[0] == 'R':
+            elif self.root.ids.request_button.tab == 'R':
+                self.root.ids.request_button.tab = 'F'
                 self.set_sidebar_to_friend_list()
         except IndexError:
             pass
@@ -159,7 +214,7 @@ class ChatApp(App):  # this is the main KV app
         self.server_key = self.private.gen_shared_key(command['content'])
         self.root.current = 'login'
 
-    def login_ok(self, command):  # called when login succeeds, changes to the chatroom screen
+    def login_ok(self):  # called when login succeeds, changes to the chatroom screen
         for screen in self.root.screens:  # clean any errors that may have appeared. This is ugly. Too bad!
             if screen.name == 'login':
                 try:
@@ -174,7 +229,7 @@ class ChatApp(App):  # this is the main KV app
 
         self.root.current = 'chat_room'
 
-    def signup_ok(self, command):  # ditto above, only for signup
+    def signup_ok(self):  # ditto above, only for signup
         for screen in self.root.screens:
             if screen.name == 'signup':  # same ugliness
                 try:
@@ -206,14 +261,15 @@ class ChatApp(App):  # this is the main KV app
         }
         self.root.current = 'loading_screen'
         Clock.usleep(50000)  # give the client time to catch up and the server to log the user in
-        self.factory.client.transport.write(dumps(login_packet).encode())
+        self.factory.client.transport.write((dumps(login_packet) + '\r\n').encode())
+        print(f" <- {dumps(login_packet).encode()}")
 
     def got_friend_key(self, command):  # called when a common key is established with a partner, after the req.
         add_common_key(command['friend'],
                        self.private.gen_shared_key(command['content']),
                        self.username)
 
-    def username_taken(self, command):  # called to change the screen to an errored state
+    def username_taken(self):  # called to change the screen to an errored state
         for screen in self.root.screens:
             if screen.name == 'signup':
                 try:
@@ -230,7 +286,7 @@ class ChatApp(App):  # this is the main KV app
 
         self.root.current = 'signup'
 
-    def login_failed(self, command):  # called when the signup process fails.
+    def login_failed(self):  # called when the signup process fails.
         for screen in self.root.screens:
             if screen.name == 'login':
                 try:
@@ -259,7 +315,8 @@ class ChatApp(App):  # this is the main KV app
                 'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                 'isfile': False
             }
-            self.factory.client.transport.write(dumps(packet).encode())
+            self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
+            print(f" <- {dumps(packet).encode()}")
             popup.dismiss()
 
         container = BackgroundContainer(orientation='vertical', padding=10, spacing=10)
@@ -309,13 +366,14 @@ class ChatApp(App):  # this is the main KV app
         save_message(start_message, self.username)  # save it
         del self.sidebar_refs[friend]
         self.set_sidebar_to_friend_list()
-        self.factory.client.transport.write(dumps(packet).encode())  # send the acknowledgement
+        self.factory.client.transport.write((dumps(packet) + '\r\n').encode())  # send the acknowledgement
+        print(f" <- {dumps(packet).encode()}")
 
     def accept_request_reply(self, packet):  # called when the peer has accepted the chat request
         private = DiffieHellman()
         private._DiffieHellman__a = get_private_key(packet['sender'], self.username)
         common = private.gen_shared_key(int(packet['content']))  # Maybe Done: Sometimes getting errors. Why?
-        add_common_key(packet['sender'], common, self.username)  # TODO: investigate
+        add_common_key(packet['sender'], common, self.username)
         delete_private_key(packet['sender'], self.username)
         start_message = {
             'sender': packet['sender'],
@@ -329,15 +387,17 @@ class ChatApp(App):  # this is the main KV app
         self.set_sidebar_to_friend_list()
 
     def deny_request(self, button_object):  # called when denying the request
-        self.root.ids.sidebar.remove_widget(button_object.parent)
+        self.root.ids.sidebar.remove_widget(button_object)
         del self.sidebar_refs[button_object.parent.parent.username]
         delete_request(button_object.parent.parent.username)
+        self.set_sidebar_to_request_list()
 
     """Loading methods"""
 
     def set_sidebar_to_friend_list(self):  # set sidebar to the friends list
         self.root.ids.sidebar.clear_widgets()  # clear all items in the sidebar
-        #self.root.ids.request_button.text = f"Requests ({len(get_requests(self.username))})"  # change the sidebar button
+        self.root.ids.req.source = 'Assets/requests.png'
+        self.root.ids.request_button.text = f"{len(get_requests(self.username))}\n"  # change the sidebar button
         self.root.ids.request_button.on_press = self.set_sidebar_to_request_list  # text
 
         names = get_friends(self.username)  # call the database to see who the prev conversations were
@@ -352,10 +412,17 @@ class ChatApp(App):  # this is the main KV app
 
     def set_sidebar_to_request_list(self):  # pretty much ditto set_sidebar_to_friend_list, see above
         self.root.ids.sidebar.clear_widgets()
-        self.root.ids.request_button.text = "Friends"
+        self.root.ids.request_button.text = ""
+        self.root.ids.req.source = 'Assets/conversation.png'
+
+        """Image:
+        source: 'Assets/requests.png'
+        size: self.parent.size
+        pos: (self.parent.pos[0] - 1, self.parent.pos[1])"""
+
         self.root.ids.request_button.on_press = self.set_sidebar_to_friend_list
 
-        requests = get_requests(self.username)
+        requests = get_requests(self.username)  # fixed
         for i in requests:
             e = SidebarElement(i)
 
@@ -373,35 +440,54 @@ class ChatApp(App):  # this is the main KV app
             self.root.ids.conversation.rows = 0
 
         messages = get_messages(partner, self.username)  # call the database to get the messages
-
         for i in messages:  # decrypt every message and then display it
-            cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-            encrypted = p_loads(b64decode(i.message_data))
-            if not i.isfile:
-                try:
-                    i.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
-                except ValueError:
-                    Logger.error(f"Application: MAC error on message id {i.id}")
-                    i.message_data = "[Message decryption failed. Most likely the key has changed]"
-                finally:
-                    if i.sender == self.username:
-                        e = ConversationElement(text=i.message_data, side='r')
-                    else:
-                        e = ConversationElement(text=i.message_data, side='l')
-            else:
-                try:
-                    file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
-                except ValueError:
-                    Logger.error(f"Application: MAC error on message id {i.id}")
-                    file_data['filename'] = "[Message decryption failed. Most likely the key has changed]"
-                finally:
-                    if i.sender == self.username:
-                        e = ConversationElement(side='r', isfile=True, filedata=file_data)
-                    else:
-                        e = ConversationElement(side='l', isfile=True, filedata=file_data)
-            self.root.ids.conversation.rows += 1
-            self.root.ids.conversation.add_widget(e.line)
-            self.conversation_refs.append(e)
+            self.add_bubble_to_conversation(i, partner)
+
+    def ingest_file(self, buffer):
+        self.incoming['isfile'] = True
+        self.incoming['sender'] = self.incoming['original_sender']
+        self.incoming['content'] = buffer.strip(b'\r\n')
+        self.incoming['timestamp'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        save_message(self.incoming, self.username)
+        print('here')
+        f = FauxMessage()
+        f.isfile = self.incoming['isfile']
+        f.message_data = self.incoming['content']
+        f.sender = self.incoming['sender']
+        application.add_bubble_to_conversation(f, self.incoming['sender'])
+
+
+    def add_bubble_to_conversation(self, message, partner):
+        cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
+        encrypted = p_loads(b64decode(message.message_data))
+        file_data = None
+        e = None
+        if not message.isfile:
+            try:
+                message.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
+            except ValueError:
+                Logger.error(f"Application: MAC error on message id {message.id}")
+                message.message_data = "[Message decryption failed. Most likely the key has changed]"
+            finally:
+                if message.sender == self.username:
+                    e = ConversationElement(side='r', isfile=False, text=message.message_data)
+                else:
+                    e = ConversationElement(side='l', isfile=False, text=message.message_data)
+        else:
+            try:
+                file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
+            except ValueError:
+                Logger.error(f"Application: MAC error on message id {message.id}")
+                file_data['filename'] = "[Message decryption failed. Most likely the key has changed]"
+            finally:
+                if message.sender == self.username:
+                    e = ConversationElement(side='r', isfile=True, filedata=file_data)
+                else:
+                    e = ConversationElement(side='l', isfile=True, filedata=file_data)
+        self.root.ids.conversation.rows += 1
+        self.root.ids.conversation.add_widget(e.line)
+        self.conversation_refs.append(e)
+        Clock.schedule_once(e.reload, 0.01)  # addresses the bug where the long messages do not display properly
 
     def init_chat_room(self):  # called upon first entering the chatroom
         self.hide_message_box()
@@ -449,18 +535,6 @@ class ChatApp(App):  # this is the main KV app
         else:
             return True
 
-    @staticmethod
-    def disable_fullscreen():
-        #Config.set('graphics', 'fullscreen', '0')
-        # Config.write()
-        pass
-
-    @staticmethod
-    def enable_fullscreen():
-        #Config.set('graphics', 'fullscreen', '1')
-       # Config.write()
-        pass
-
     def fail_connection(self):  # called when connection has failed
         for screen in self.root.screens:
             if screen.name == 'login':
@@ -494,40 +568,72 @@ class ChatApp(App):  # this is the main KV app
         self.root.current = 'login'
 
 
-class Client(Protocol):  # defines the comms protocol
+class Client(Protocol):  # defines the communications protocol
     def __init__(self):
         self.username = None
         self.destination = None
+        self.receiving_file = False
+        self.buffer = b""
 
     def connectionMade(self):
         Logger.info("Established connection.")  # note: all queue mechanisms were removed once 1.3 rolled around
         application.succeed_connection()
 
     def dataReceived(self, data):  # called when a packet is received.
-        data = data.decode().split('}')
-        for i in data:
-            if i:
-                command = loads((i + '}').encode())
-                if command['command'] == 'secure':
-                    application.secure_server(command)
-                elif command['command'] == '200':
-                    application.login_ok(command)
-                elif command['command'] == '201':
-                    application.signup_ok(command)
-                elif command['command'] == 'friend_key':
-                    application.got_friend_key(command)
-                elif command['command'] == '406':
-                    application.username_taken(command)
-                elif command['command'] == '401':
-                    application.login_failed(command)
-                elif command['command'] == 'friend_request':
-                    add_request(command)
-                    application.set_sidebar_tab()
-                elif command['command'] == 'friend_accept':
-                    application.accept_request_reply(command)
-                elif command['command'] == 'message':
-                    save_message(command, application.username)
-                    application.load_messages(application.destination)
+        if not self.receiving_file:
+            print(f" -> {data}")
+            data = data.decode().split('}')
+            for packet in data:
+                if packet:
+                    command = loads((packet + '}').encode())
+                    if command['command'] == 'secure':
+                        application.secure_server(command)
+                    elif command['command'] == '200':
+                        application.login_ok()
+                    elif command['command'] == '201':
+                        application.signup_ok()
+                    elif command['command'] == 'friend_key':
+                        application.got_friend_key(command)
+                    elif command['command'] == '406':
+                        application.username_taken()
+                    elif command['command'] == '401':
+                        application.login_failed()
+                    elif command['command'] == 'friend_request':
+                        add_request(command)
+                        application.root.ids.request_button.text = f"{len(get_requests(application.username))}\n"
+                    elif command['command'] == 'friend_accept':
+                        application.accept_request_reply(command)
+                    elif command['command'] == 'message':
+                        save_message(command, application.username)
+                        f = FauxMessage()
+                        f.isfile = command['isfile']
+                        f.message_data = command['content']
+                        f.sender = command['sender']
+                        application.add_bubble_to_conversation(f, command['sender'])
+                    elif command['command'] == 'ready_for_file':
+                        application.send_file()
+                    elif command['command'] == 'prepare_for_file':
+                        application.incoming = command
+                        self.receiving_file = True
+                        print("In file transfer mode")
+                        packet = {
+                            'sender': command['destination'],
+                            'destination': command['sender'],
+                            'command': 'ready_for_file'
+                                  }
+                        application.factory.client.transport.write(dumps(packet).encode())
+                        print(f" <- {dumps(packet).encode()}")
+        else:
+            print(f" -> [ FILE BLOB DATA ]")
+            self.buffer += data
+            if self.buffer[-2:] == '\r\n'.encode():
+                print("File transfer complete")
+                application.ingest_file(self.buffer)
+                self.receiving_file = False
+                self.buffer = b""
+                print("Successfully ingested. All done.")
+
+
 
     def connectionLost(self, reason=connectionDone):  # called when the connection dies. RIP.
         Logger.info(reason.value)
@@ -539,6 +645,7 @@ class ClientFactory(Factory):  # handles connections and communications
 
     def buildProtocol(self, addr):
         c = Client()
+        self.sender = FileSender()
         self.client = c
         return c
 
@@ -546,7 +653,7 @@ class ClientFactory(Factory):  # handles connections and communications
         Logger.info('Application: Attempting to connect...')
 
     def clientConnectionFailed(self, connector, reason):
-        Logger.warning('Application: Connection failed!')
+        Logger.error('Application: Connection failed!')
         application.fail_connection()
         connector.connect()
 

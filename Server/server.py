@@ -8,19 +8,26 @@ from Crypto.Cipher import AES
 from pyDH import DiffieHellman
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory, connectionDone
-
+from sys import getsizeof
+from io import BytesIO
+from twisted.protocols.basic import FileSender
+from twisted.internet.defer import Deferred
 from DBHandler import *
 
 
-def get_transportable_data(packet):     # helper method to get a transportable version of non-encoded data
+def get_transportable_data(packet):  # helper method to get a transportable version of non-encoded data
     return json.dumps(packet).encode()
 
 
-class Server(Protocol):         # describes the protocol. compared to the client, the server has relatively little to do
+class Server(Protocol):  # describes the protocol. compared to the client, the server has relatively little to do
     def __init__(self, factory):
         self.factory = factory
-        self.endpoint_username = None       # describes the username of the connected user
+        self.endpoint_username = None  # describes the username of the connected user
         self.key = None
+        self.receiving_file = False
+        self.outgoing = None
+        self.buffer = b""
+        self.ready_to_receive = False
 
     def connectionMade(self):
         pass
@@ -34,10 +41,11 @@ class Server(Protocol):         # describes the protocol. compared to the client
                 pass
             self.endpoint_username = None
 
-    def dataReceived(self, data):
-        Logger.info(data)
+    def decode_command(self, data):
         try:
             packet = json.loads(data)
+        except UnicodeError:
+            return
         except Exception as e:
             Logger.error(f"Tried loading, failed! Reason: {e}")
             Logger.error(f"Message contents was: {data}")
@@ -113,12 +121,58 @@ class Server(Protocol):         # describes the protocol. compared to the client
                     'command': 'processed ok'
                 }
                 self.transport.write(get_transportable_data(reply))
+
+        elif packet['command'] == 'prepare_for_file':
+            reply = {
+                'sender': 'SERVER',
+                'command': 'ready_for_file'
+            }
+            Logger.info(f"Switching to file transfer mode for user {self.endpoint_username}")
+            self.receiving_file = True
+            self.factory.connections[packet['destination']].outgoing = packet
+            self.outgoing = packet
+            self.transport.write(get_transportable_data(reply))
+            # self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
+        elif packet['command'] == 'ready_for_file':
+            Logger.info(f"User {packet['sender']} reports ready to receive file")
+            blob = BytesIO(self.buffer)
+            sender = FileSender()
+            sender.CHUNK_SIZE = 2 ** 16
+            monitor = sender.beginFileTransfer(blob, self.factory.connections[self.outgoing['destination']].transport)
+            self.buffer = b""
+            self.outgoing = None
+
         else:
             reply = {
                 'sender': 'SERVER',
                 'command': '400'
             }
             self.transport.write(get_transportable_data(reply))
+
+    def check_if_ready(self, sender, peer, timestamp):
+        packet = {
+            'sender': 'SERVER',
+            'destination': peer,
+            'command': 'prepare_for_file',
+            'original_sender': sender,
+            'timestamp': timestamp
+        }
+        self.factory.connections[peer].transport.write(get_transportable_data(packet))
+
+    def dataReceived(self, data):
+        if not self.receiving_file:
+            data = data.split('\r\n'.encode())
+            for message in data:
+                if message:
+                    self.decode_command(message)
+        else:
+            self.buffer += data
+            if self.buffer[-2:] == '\r\n'.encode():
+                Logger.info(f"{self.endpoint_username} successfully uploaded file. Beginning relay process.")
+                self.receiving_file = False
+                self.factory.connections[self.outgoing['destination']].buffer = self.buffer
+                self.buffer = None
+                self.check_if_ready(self.outgoing['sender'], self.outgoing['destination'], self.outgoing['timestamp'])
 
 
 class ServerFactory(Factory):
@@ -128,7 +182,6 @@ class ServerFactory(Factory):
 
     def buildProtocol(self, addr):
         return Server(self)
-
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
