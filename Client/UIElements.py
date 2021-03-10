@@ -2,7 +2,7 @@ from tkinter.filedialog import SaveAs, asksaveasfile
 
 from kivy import Logger, LOG_LEVELS
 
-Logger.setLevel(LOG_LEVELS["debug"])
+Logger.setLevel(LOG_LEVELS["error"])
 from kivy.base import ExceptionHandler, ExceptionManager
 from kivy.graphics.context_instructions import Color
 from kivy.graphics.vertex_instructions import Rectangle, RoundedRectangle, Ellipse

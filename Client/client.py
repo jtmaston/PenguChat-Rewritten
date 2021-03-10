@@ -135,6 +135,8 @@ class ChatApp(App):  # this is the main KV app
         file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
         cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
         blob = p_dumps(cipher.encrypt_and_digest(file_data)) + '\r\n'.encode()
+        blob = b64encode(blob)
+        blob += b'\r\n'
         blob = BytesIO(blob)
         sender = FileSender()
         sender.CHUNK_SIZE = 2 ** 16
@@ -154,7 +156,7 @@ class ChatApp(App):  # this is the main KV app
             'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
             'isfile': False,
         }
-
+        save_message(packet, self.username)
         f = FauxMessage()
         f.isfile = packet['isfile']
         f.message_data = packet['content']
@@ -163,26 +165,6 @@ class ChatApp(App):  # this is the main KV app
         self.add_bubble_to_conversation(f, self.destination)
         self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
         print(f" <- {dumps(packet).encode()}")
-        """else:
-
-            def read_bytes_from_file(f, chunk_size=8100):
-                with open(f, 'rb') as f:
-                    while True:
-                        chunk = f.read(chunk_size)
-                        if chunk:
-                            yield chunk
-                        else:
-                            break
-
-            cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
-            file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
-            content = p_dumps(cipher.encrypt_and_digest(file_data))
-            cached = open(user_data_dir("PenguChat") + '/cache.bin', 'wb+')
-            cached.write(content)
-            cached.close()
-            for byte_chunk in read_bytes_from_file(user_data_dir("PenguChat") + '/cache.bin'):
-                self.factory.client.transport.write(byte_chunk)
-            self.factory.client.transport.write('\r\n'.encode())"""
 
     def attach_file(self):  # function for attaching and then sending file
         file = filedialog.askopenfile(mode="rb")
@@ -449,13 +431,12 @@ class ChatApp(App):  # this is the main KV app
         self.incoming['content'] = buffer.strip(b'\r\n')
         self.incoming['timestamp'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         save_message(self.incoming, self.username)
-        print('here')
         f = FauxMessage()
         f.isfile = self.incoming['isfile']
         f.message_data = self.incoming['content']
         f.sender = self.incoming['sender']
         application.add_bubble_to_conversation(f, self.incoming['sender'])
-
+        print("ingest complete")
 
     def add_bubble_to_conversation(self, message, partner):
         cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
@@ -620,7 +601,7 @@ class Client(Protocol):  # defines the communications protocol
                             'sender': command['destination'],
                             'destination': command['sender'],
                             'command': 'ready_for_file'
-                                  }
+                        }
                         application.factory.client.transport.write(dumps(packet).encode())
                         print(f" <- {dumps(packet).encode()}")
         else:
@@ -632,8 +613,6 @@ class Client(Protocol):  # defines the communications protocol
                 self.receiving_file = False
                 self.buffer = b""
                 print("Successfully ingested. All done.")
-
-
 
     def connectionLost(self, reason=connectionDone):  # called when the connection dies. RIP.
         Logger.info(reason.value)

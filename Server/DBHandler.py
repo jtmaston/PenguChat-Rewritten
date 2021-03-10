@@ -29,7 +29,7 @@ class MessageCache(Model):
     sender = CharField(100)
     destination = CharField(100)
     command = CharField(100)
-    content = BlobField()
+    content = BlobField(null=True)
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
     isfile = BooleanField()
@@ -38,11 +38,21 @@ class MessageCache(Model):
         database = db
 
 
+def append_file_to_cache(packet, blob):
+    query = MessageCache.update({MessageCache.content: blob}).where(MessageCache.timestamp == packet['timestamp'])
+    query.execute()
+
+
 def add_message_to_cache(packet):
+    try:
+        content = packet['content']
+    except KeyError:
+        content = ""
+
     MessageCache(
         sender=packet['sender'],
         destination=packet['destination'],
-        content=packet['content'],
+        content=content,
         timestamp=packet['timestamp'],
         command=packet['command'],
         isfile=packet['isfile']

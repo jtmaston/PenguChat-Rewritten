@@ -76,6 +76,7 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
                 cached = get_cached_messages_for_user(packet['sender'])
                 if cached:
                     for i in cached:
+                        i['content'] = i['content'].decode()
                         self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
                 reply = {
                     'sender': 'SERVER',
@@ -129,16 +130,21 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
             }
             Logger.info(f"Switching to file transfer mode for user {self.endpoint_username}")
             self.receiving_file = True
-            self.factory.connections[packet['destination']].outgoing = packet
+            packet['isfile'] = True
+            try:
+                self.factory.connections[packet['destination']].outgoing = packet
+            except KeyError:
+                add_message_to_cache(packet)
+
             self.outgoing = packet
             self.transport.write(get_transportable_data(reply))
-            # self.factory.connections[packet['destination']].transport.write(get_transportable_data(packet))
+
         elif packet['command'] == 'ready_for_file':
             Logger.info(f"User {packet['sender']} reports ready to receive file")
-            blob = BytesIO(self.buffer)
             sender = FileSender()
             sender.CHUNK_SIZE = 2 ** 16
-            monitor = sender.beginFileTransfer(blob, self.factory.connections[self.outgoing['destination']].transport)
+            blob = BytesIO(self.buffer)
+            sender.beginFileTransfer(blob, self.factory.connections[packet['sender']].transport)
             self.buffer = b""
             self.outgoing = None
 
@@ -170,9 +176,14 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
             if self.buffer[-2:] == '\r\n'.encode():
                 Logger.info(f"{self.endpoint_username} successfully uploaded file. Beginning relay process.")
                 self.receiving_file = False
-                self.factory.connections[self.outgoing['destination']].buffer = self.buffer
+                try:
+                    self.factory.connections[self.outgoing['destination']].buffer = self.buffer
+                    self.check_if_ready(self.outgoing['sender'], self.outgoing['destination'],
+                                        self.outgoing['timestamp'])
+                except KeyError:
+                    append_file_to_cache(self.outgoing, self.buffer)
                 self.buffer = None
-                self.check_if_ready(self.outgoing['sender'], self.outgoing['destination'], self.outgoing['timestamp'])
+
 
 
 class ServerFactory(Factory):
@@ -182,6 +193,7 @@ class ServerFactory(Factory):
 
     def buildProtocol(self, addr):
         return Server(self)
+
 
 if __name__ == '__main__':
     reactor.listenTCP(8123, ServerFactory())
