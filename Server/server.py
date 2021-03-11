@@ -76,8 +76,11 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
                 cached = get_cached_messages_for_user(packet['sender'])
                 if cached:
                     for i in cached:
-                        i['content'] = i['content'].decode()
-                        self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
+                        if i['command'] == 'prepare_for_file':
+                            self.check_if_ready(i['sender'], i['destination'], i['timestamp'])
+                        else:
+                            i['content'] = i['content'].decode()
+                            self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
                 reply = {
                     'sender': 'SERVER',
                     'command': '200'
@@ -147,6 +150,7 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
             sender.beginFileTransfer(blob, self.factory.connections[packet['sender']].transport)
             self.buffer = b""
             self.outgoing = None
+            Logger.info(f"Finished upload to {packet['sender']}. {blob.getbuffer().nbytes} bytes transferred.")
 
         else:
             reply = {
@@ -174,7 +178,7 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
         else:
             self.buffer += data
             if self.buffer[-2:] == '\r\n'.encode():
-                Logger.info(f"{self.endpoint_username} successfully uploaded file. Beginning relay process.")
+                Logger.info(f"{self.endpoint_username} finished upload. {getsizeof(self.buffer)} bytes received.")
                 self.receiving_file = False
                 try:
                     self.factory.connections[self.outgoing['destination']].buffer = self.buffer
@@ -182,8 +186,7 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
                                         self.outgoing['timestamp'])
                 except KeyError:
                     append_file_to_cache(self.outgoing, self.buffer)
-                self.buffer = None
-
+                self.buffer = b""
 
 
 class ServerFactory(Factory):

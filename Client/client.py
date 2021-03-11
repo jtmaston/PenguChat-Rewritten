@@ -32,6 +32,10 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 from twisted.protocols.basic import FileSender
+from twisted.python.log import startLogging
+from sys import stdout
+startLogging(stdout)
+
 from UIElements import *
 
 
@@ -168,16 +172,17 @@ class ChatApp(App):  # this is the main KV app
 
     def attach_file(self):  # function for attaching and then sending file
         file = filedialog.askopenfile(mode="rb")
-        self.file_in_queue = file.name
-        packet = {
-            'sender': self.username,
-            'destination': self.destination,
-            'command': 'prepare_for_file',
-            'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-            'requested': file.name
-        }
-        self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
-        print(f" <- {dumps(packet).encode()}")
+        if file:
+            self.file_in_queue = file.name
+            packet = {
+                'sender': self.username,
+                'destination': self.destination,
+                'command': 'prepare_for_file',
+                'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                'requested': file.name
+            }
+            self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
+            print(f" <- {dumps(packet).encode()}")
 
     """Helper methods"""
 
@@ -427,7 +432,7 @@ class ChatApp(App):  # this is the main KV app
 
     def ingest_file(self, buffer):
         self.incoming['isfile'] = True
-        self.incoming['sender'] = self.incoming['original_sender']
+        self.incoming['sender'] = self.incoming['sender']
         self.incoming['content'] = buffer.strip(b'\r\n')
         self.incoming['timestamp'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         save_message(self.incoming, self.username)
@@ -595,6 +600,7 @@ class Client(Protocol):  # defines the communications protocol
                         application.send_file()
                     elif command['command'] == 'prepare_for_file':
                         application.incoming = command
+                        application.incoming['sender'] = command['original_sender']
                         self.receiving_file = True
                         print("In file transfer mode")
                         packet = {
