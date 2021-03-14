@@ -199,6 +199,10 @@ ScreenManager:
 		on_enter:
 			Window.size = (1080, 720)
 			app.init_chat_room()
+
+		on_leave:
+		    app.hide_tk()
+
 		name: 'chat_room'
 		BoxLayout:
 		    orientation: 'vertical'

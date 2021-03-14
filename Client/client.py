@@ -34,6 +34,7 @@ from twisted.internet.protocol import ClientFactory as Factory
 from twisted.protocols.basic import FileSender
 from twisted.python.log import startLogging
 from sys import stdout
+
 startLogging(stdout)
 
 from UIElements import *
@@ -65,6 +66,10 @@ class ChatApp(App):  # this is the main KV app
         self.incoming = {}
 
     """App loading section"""
+
+    @staticmethod
+    def hide_tk(*args, **kwargs):
+        tkWindow.withdraw()
 
     def build(self):
         super(ChatApp, self).build()
@@ -134,13 +139,8 @@ class ChatApp(App):  # this is the main KV app
         self.root.current = 'loading_screen'
         self.init_chat_room()  # called to clear the chat room, in anticipation of a new one being loaded
 
-    def send_file(self):
-        file = open(self.file_in_queue, "rb")
-        file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
-        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
-        blob = p_dumps(cipher.encrypt_and_digest(file_data)) + '\r\n'.encode()
-        blob = b64encode(blob)
-        blob += b'\r\n'
+    def send_file(self, sender, destination, timestamp):
+        blob = get_file_for_message(sender, destination, timestamp)
         blob = BytesIO(blob)
         sender = FileSender()
         sender.CHUNK_SIZE = 2 ** 16
@@ -173,14 +173,35 @@ class ChatApp(App):  # this is the main KV app
     def attach_file(self):  # function for attaching and then sending file
         file = filedialog.askopenfile(mode="rb")
         if file:
-            self.file_in_queue = file.name
+            file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
+            cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
+            blob = p_dumps(cipher.encrypt_and_digest(file_data)) + '\r\n'.encode()
+            blob = b64encode(blob)
+            blob += b'\r\n'
+
+            cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
+            encrypted_name = p_dumps(cipher.encrypt_and_digest(basename(file.name).encode()))
+            encrypted_name = b64encode(encrypted_name).decode()
+
             packet = {
                 'sender': self.username,
                 'destination': self.destination,
                 'command': 'prepare_for_file',
                 'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                'requested': file.name
+                'content': blob,
+                'isfile': True,
+                'filename': encrypted_name
             }
+            save_message(packet, self.username, filename=basename(file.name))
+            packet['content'] = ""
+            packet['isfile'] = None
+            f = FauxMessage()
+            f.isfile = True
+            f.truncated = packet
+            f.sender = packet['sender']
+            f.destination = packet['destination'],
+            f.timestamp = datetime.strptime(packet['timestamp'], "%m/%d/%Y, %H:%M:%S")
+            self.add_bubble_to_conversation(f, self.destination)
             self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
             print(f" <- {dumps(packet).encode()}")
 
@@ -431,24 +452,31 @@ class ChatApp(App):  # this is the main KV app
             self.add_bubble_to_conversation(i, partner)
 
     def ingest_file(self, buffer):
+
+        cipher = AES.new(get_common_key(self.username, self.incoming['sender']), AES.MODE_SIV)
+        encrypted_filename = p_loads(b64decode(self.incoming['filename']))
+
         self.incoming['isfile'] = True
-        self.incoming['sender'] = self.incoming['sender']
+        self.incoming['sender'] = self.incoming['sender']  # TODO: ?
         self.incoming['content'] = buffer.strip(b'\r\n')
         self.incoming['timestamp'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        save_message(self.incoming, self.username)
+        filename = cipher.decrypt_and_verify(encrypted_filename[0], encrypted_filename[1]).decode()
+
+        save_message(self.incoming, self.username, filename)
         f = FauxMessage()
         f.isfile = self.incoming['isfile']
         f.message_data = self.incoming['content']
         f.sender = self.incoming['sender']
+        f.destination = self.username
+        f.timestamp = self.incoming['timestamp']
+
         application.add_bubble_to_conversation(f, self.incoming['sender'])
         print("ingest complete")
 
     def add_bubble_to_conversation(self, message, partner):
         cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-        encrypted = p_loads(b64decode(message.message_data))
-        file_data = None
-        e = None
         if not message.isfile:
+            encrypted = p_loads(b64decode(message.message_data))
             try:
                 message.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
@@ -460,16 +488,20 @@ class ChatApp(App):  # this is the main KV app
                 else:
                     e = ConversationElement(side='l', isfile=False, text=message.message_data)
         else:
-            try:
-                file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
-            except ValueError:
-                Logger.error(f"Application: MAC error on message id {message.id}")
-                file_data['filename'] = "[Message decryption failed. Most likely the key has changed]"
-            finally:
-                if message.sender == self.username:
-                    e = ConversationElement(side='r', isfile=True, filedata=file_data)
-                else:
-                    e = ConversationElement(side='l', isfile=True, filedata=file_data)
+            filename = get_filename(message.sender,
+                                    message.destination,
+                                    message.timestamp
+                                    )
+            truncated = {
+                'sender': message.sender,
+                'destination': message.destination,
+                'timestamp': message.timestamp
+            }
+            if message.sender == self.username:
+                e = ConversationElement(side='r', isfile=True, filename=filename, truncated=truncated)
+            else:
+                e = ConversationElement(side='l', isfile=True, filename=filename, truncated=truncated)
+
         self.root.ids.conversation.rows += 1
         self.root.ids.conversation.add_widget(e.line)
         self.conversation_refs.append(e)
@@ -597,10 +629,16 @@ class Client(Protocol):  # defines the communications protocol
                         f.sender = command['sender']
                         application.add_bubble_to_conversation(f, command['sender'])
                     elif command['command'] == 'ready_for_file':
-                        application.send_file()
+                        application.send_file(
+                            command['original_sender'],
+                            command['original_destination'],
+                            command['timestamp']
+                        )
                     elif command['command'] == 'prepare_for_file':
+                        print(command)
                         application.incoming = command
                         application.incoming['sender'] = command['original_sender']
+                        application.incoming['filename'] = command['filename']
                         self.receiving_file = True
                         print("In file transfer mode")
                         packet = {

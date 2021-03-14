@@ -33,6 +33,7 @@ class MessageCache(Model):
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
     isfile = BooleanField()
+    filename = TextField()
 
     class Meta:
         database = db
@@ -49,13 +50,19 @@ def add_message_to_cache(packet):
     except KeyError:
         content = ""
 
+    try:
+        filename = packet['filename']
+    except KeyError:
+        filename = ""
+
     MessageCache(
         sender=packet['sender'],
         destination=packet['destination'],
         content=content,
         timestamp=packet['timestamp'],
         command=packet['command'],
-        isfile=packet['isfile']
+        isfile=packet['isfile'],
+        filename=packet['filename']
     ).save()
 
 

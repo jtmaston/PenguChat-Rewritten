@@ -1,6 +1,10 @@
+from base64 import b64decode
 from tkinter.filedialog import SaveAs, asksaveasfile
 
+from Crypto.Cipher import AES
 from kivy import Logger, LOG_LEVELS
+
+from Client.DBHandler import get_common_key, get_file_for_message
 
 Logger.setLevel(LOG_LEVELS["error"])
 from kivy.base import ExceptionHandler, ExceptionManager
@@ -10,6 +14,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.widget import Widget
+
+from pickle import loads as p_loads
 
 # houses the UI elements that couldn't be defined in the KV
 
@@ -81,7 +87,7 @@ class MessageBubble(Label):
 
 
 class FileBubble(Button):
-    def __init__(self, side, text, blob, **kwargs):
+    def __init__(self, side, text, truncated, **kwargs):
         super(FileBubble, self).__init__(**kwargs)
         self.background_color = (0, 0, 0, 0)
         with self.canvas.before:
@@ -90,8 +96,8 @@ class FileBubble(Button):
             self.rect = RoundedRectangle(pos=self.pos, size=(150, 150))
             self.rect.radius = [(15, 15), (15, 15), (15, 15), (15, 15)]
             self.side = side
-            self.data = blob
-            self.text =	f'\n\n\n{text}'
+            self.text = f'\n\n\n{text}'
+            self.truncated = truncated
 
         self.bind(pos=self.update_rect)
         self.bind(on_press=self.callback)
@@ -105,13 +111,18 @@ class FileBubble(Button):
         self.parent.height = self.height
 
     def callback(self, *args, **kwargs):
-        f = asksaveasfile(mode='wb+', initialfile=self.text.strip())
+        cipher = AES.new(get_common_key(self.truncated['destination'], self.truncated['sender']), AES.MODE_SIV)
+        buffered = get_file_for_message(self.truncated['sender'],
+                                        self.truncated['destination'],
+                                        self.truncated['timestamp']
+                                        )
+        encrypted = p_loads(b64decode(buffered))
+        data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
+        f = asksaveasfile(mode='wb+', initialfile=data['filename'])
         if f is None:
-            pass
-        f.write(self.data)
+            return
+        f.write(data['file_blob'])
         f.close()
-
-
 
 
 class SidebarElement:
@@ -145,7 +156,7 @@ class ExceptionWatchdog(ExceptionHandler):
 
 class ConversationElement:
 
-    def __init__(self, text=None, side=None, isfile=False, filedata=None):
+    def __init__(self, text=None, side=None, isfile=False, filename=None, truncated=None):
         self.line = BoxLayout(orientation='horizontal')
         self.left = None
         self.right = None
@@ -154,13 +165,13 @@ class ConversationElement:
 
         if side == 'l':
             self.left = MessageBubble(text=text, side=side) if not isfile \
-                else FileBubble(side=side, text=filedata['filename'], blob=filedata['file_blob'])
+                else FileBubble(side=side, text=filename, truncated=truncated)
             self.left.background_color.rgb = colors['incoming_message']
             self.right = EmptyWidget()
             self.reload = self.left.update_rect
         else:
             self.right = MessageBubble(text=text, side=side) if not isfile \
-                else FileBubble(side=side, text=filedata['filename'], blob=filedata['file_blob'])
+                else FileBubble(side=side, text=filename, truncated=truncated)
             self.right.background_color.rgb = colors['outgoing_message']
             self.left = EmptyWidget()
             self.reload = self.right.update_rect

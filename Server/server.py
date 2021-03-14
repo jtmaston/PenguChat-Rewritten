@@ -77,7 +77,8 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
                 if cached:
                     for i in cached:
                         if i['command'] == 'prepare_for_file':
-                            self.check_if_ready(i['sender'], i['destination'], i['timestamp'])
+                            self.check_if_ready(i['sender'], i['destination'],
+                                                i['timestamp'], i['content'], i['filename'])
                         else:
                             i['content'] = i['content'].decode()
                             self.factory.connections[packet['sender']].transport.write(get_transportable_data(i))
@@ -129,7 +130,10 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
         elif packet['command'] == 'prepare_for_file':
             reply = {
                 'sender': 'SERVER',
-                'command': 'ready_for_file'
+                'command': 'ready_for_file',
+                'original_sender': packet['sender'],
+                'original_destination': packet['destination'],
+                'timestamp': packet['timestamp'],
             }
             Logger.info(f"Switching to file transfer mode for user {self.endpoint_username}")
             self.receiving_file = True
@@ -159,14 +163,16 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
             }
             self.transport.write(get_transportable_data(reply))
 
-    def check_if_ready(self, sender, peer, timestamp):
+    def check_if_ready(self, sender, peer, timestamp, data, filename):
         packet = {
             'sender': 'SERVER',
             'destination': peer,
             'command': 'prepare_for_file',
             'original_sender': sender,
-            'timestamp': timestamp
+            'timestamp': timestamp,
+            'filename': filename
         }
+        self.factory.connections[peer].buffer = data
         self.factory.connections[peer].transport.write(get_transportable_data(packet))
 
     def dataReceived(self, data):
@@ -181,9 +187,9 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
                 Logger.info(f"{self.endpoint_username} finished upload. {getsizeof(self.buffer)} bytes received.")
                 self.receiving_file = False
                 try:
-                    self.factory.connections[self.outgoing['destination']].buffer = self.buffer
+                    t = self.factory.connections[self.outgoing['destination']]
                     self.check_if_ready(self.outgoing['sender'], self.outgoing['destination'],
-                                        self.outgoing['timestamp'])
+                                        self.outgoing['timestamp'], self.buffer, self.outgoing['filename'])
                 except KeyError:
                     append_file_to_cache(self.outgoing, self.buffer)
                 self.buffer = b""

@@ -41,6 +41,7 @@ class Messages(Model):
     message_data = BlobField()
     timestamp = DateTimeField()
     isfile = BooleanField()
+    filename = TextField(default=None)
 
     class Meta:
         database = db
@@ -55,7 +56,32 @@ class Requests(Model):
         database = db
 
 
-def add_common_key(partner_name, common_key, added_by):     # add a common key to the database
+def get_file_for_message(sender, destination, timestamp):
+    try:
+        timestamp = datetime.strptime(timestamp, "%m/%d/%Y, %H:%M:%S")
+    except TypeError:
+        pass
+
+    return Messages.get(
+        Messages.sender == sender,
+        Messages.destination == destination,
+        Messages.timestamp == timestamp
+    ).message_data
+
+
+def get_filename(sender, destination, timestamp):
+    try:
+        timestamp = datetime.strptime(timestamp, "%m/%d/%Y, %H:%M:%S")
+    except TypeError:
+        pass
+    return Messages.get(
+        Messages.sender == sender,
+        Messages.destination == destination,
+        Messages.timestamp == timestamp
+    ).filename
+
+
+def add_common_key(partner_name, common_key, added_by):  # add a common key to the database
     try:
         query = CommonKeys.get(CommonKeys.partner_name == partner_name)
     except CommonKeys.DoesNotExist:
@@ -74,7 +100,7 @@ def add_common_key(partner_name, common_key, added_by):     # add a common key t
         query.save()
 
 
-def get_common_key(partner_name, username): # retrieve said common key
+def get_common_key(partner_name, username):  # retrieve said common key
     try:
         query = CommonKeys.get(
             (CommonKeys.partner_name == partner_name) &
@@ -86,7 +112,7 @@ def get_common_key(partner_name, username): # retrieve said common key
         return query.common_key
 
 
-def add_private_key(partner_name, private_key, username):   # ditto above idk
+def add_private_key(partner_name, private_key, username):  # ditto above idk
     private_key = str(private_key).encode()
     try:
         key = PrivateKeys.get(PrivateKeys.partner_name == partner_name)
@@ -142,7 +168,7 @@ def get_messages(partner, username):
     return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username]
 
 
-def save_message(packet, username):
+def save_message(packet, username, filename=None):
     try:
         message = packet['content'].encode()
     except AttributeError:
@@ -154,7 +180,8 @@ def save_message(packet, username):
         message_data=message,
         timestamp=datetime.strptime(packet['timestamp'], "%m/%d/%Y, %H:%M:%S"),
         added_by=username,
-        isfile=packet['isfile']
+        isfile=packet['isfile'],
+        filename=filename if filename is not None else ""
     ).save()
 
 
