@@ -1,8 +1,14 @@
-from functools import partial
 from io import BytesIO
-from itertools import islice
 from os.path import basename
 from tkinter import filedialog, Tk
+from os import environ
+
+from appdirs import user_data_dir
+
+path = user_data_dir("PenguChat")
+environ['KIVY_NO_ENV_CONFIG'] = '1'
+environ["KCFG_KIVY_LOG_LEVEL"] = "error"
+environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
 
 tkWindow = Tk()  # create a tkinter window, this is used for the native file dialogs
 tkWindow.withdraw()  # hide it for now
@@ -10,11 +16,9 @@ tkWindow.withdraw()  # hide it for now
 
 from builtins import IndexError
 from pickle import dumps as p_dumps
-from pickle import loads as p_loads
-from base64 import b64encode, b64decode
+from base64 import b64encode
 from json import dumps, loads
-from sys import modules, getsizeof
-from Crypto.Cipher import AES
+from sys import modules
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import Config
@@ -32,9 +36,10 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 from twisted.protocols.basic import FileSender
-from twisted.python.log import startLogging
-from sys import stdout
-startLogging(stdout)
+# from twisted.python.log import startLogging
+# from sys import stdout
+
+# startLogging(stdout)
 
 from UIElements import *
 
@@ -66,6 +71,10 @@ class ChatApp(App):  # this is the main KV app
 
     """App loading section"""
 
+    @staticmethod
+    def hide_tk(*args, **kwargs):
+        tkWindow.withdraw()
+
     def build(self):
         super(ChatApp, self).build()
         self.root.current = 'loading_screen'  # move to the loading screen
@@ -84,7 +93,7 @@ class ChatApp(App):  # this is the main KV app
             'key': public
         }
         self.factory.client.transport.write((dumps(command_packet) + '\r\n').encode())  # send
-        print(f" <- {dumps(command_packet).encode()}")
+        # print(f" <- {dumps(command_packet).encode()}")
 
     """Methods that send data to server"""
 
@@ -107,7 +116,7 @@ class ChatApp(App):  # this is the main KV app
         }
         self.root.current = 'loading_screen'
         self.factory.client.transport.write((dumps(login_packet) + '\r\n').encode())  # finally, send it
-        print(f" <- {dumps(login_packet).encode()}")
+        # print(f" <- {dumps(login_packet).encode()}")
 
     def send_sign_up_data(self):  # see above method, it's that but with extra steps
         pwd = self.root.ids.passwd.text
@@ -127,20 +136,15 @@ class ChatApp(App):  # this is the main KV app
             }
             self.root.current = 'loading_screen'
             self.factory.client.transport.write((dumps(signup_packet) + '\r\n').encode())
-            print(f" <- {dumps(signup_packet).encode()}")
+            # print(f" <- {dumps(signup_packet).encode()}")
 
     def logout(self):
         self.factory.client.transport.loseConnection()
         self.root.current = 'loading_screen'
         self.init_chat_room()  # called to clear the chat room, in anticipation of a new one being loaded
 
-    def send_file(self):
-        file = open(self.file_in_queue, "rb")
-        file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
-        cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
-        blob = p_dumps(cipher.encrypt_and_digest(file_data)) + '\r\n'.encode()
-        blob = b64encode(blob)
-        blob += b'\r\n'
+    def send_file(self, sender, destination, timestamp):
+        blob = get_file_for_message(sender, destination, timestamp)
         blob = BytesIO(blob)
         sender = FileSender()
         sender.CHUNK_SIZE = 2 ** 16
@@ -168,21 +172,42 @@ class ChatApp(App):  # this is the main KV app
 
         self.add_bubble_to_conversation(f, self.destination)
         self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
-        print(f" <- {dumps(packet).encode()}")
+        # print(f" <- {dumps(packet).encode()}")
 
     def attach_file(self):  # function for attaching and then sending file
         file = filedialog.askopenfile(mode="rb")
         if file:
-            self.file_in_queue = file.name
+            file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
+            cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
+            blob = p_dumps(cipher.encrypt_and_digest(file_data)) + '\r\n'.encode()
+            blob = b64encode(blob)
+            blob += b'\r\n'
+
+            cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)
+            encrypted_name = p_dumps(cipher.encrypt_and_digest(basename(file.name).encode()))
+            encrypted_name = b64encode(encrypted_name).decode()
+
             packet = {
                 'sender': self.username,
                 'destination': self.destination,
                 'command': 'prepare_for_file',
                 'timestamp': datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                'requested': file.name
+                'content': blob,
+                'isfile': True,
+                'filename': encrypted_name
             }
+            save_message(packet, self.username, filename=basename(file.name))
+            packet['content'] = ""
+            packet['isfile'] = None
+            f = FauxMessage()
+            f.isfile = True
+            f.truncated = packet
+            f.sender = packet['sender']
+            f.destination = packet['destination'],
+            f.timestamp = datetime.strptime(packet['timestamp'], "%m/%d/%Y, %H:%M:%S")
+            self.add_bubble_to_conversation(f, self.destination)
             self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
-            print(f" <- {dumps(packet).encode()}")
+            # print(f" <- {dumps(packet).encode()}")
 
     """Helper methods"""
 
@@ -249,7 +274,7 @@ class ChatApp(App):  # this is the main KV app
         self.root.current = 'loading_screen'
         Clock.usleep(50000)  # give the client time to catch up and the server to log the user in
         self.factory.client.transport.write((dumps(login_packet) + '\r\n').encode())
-        print(f" <- {dumps(login_packet).encode()}")
+        # print(f" <- {dumps(login_packet).encode()}")
 
     def got_friend_key(self, command):  # called when a common key is established with a partner, after the req.
         add_common_key(command['friend'],
@@ -303,7 +328,7 @@ class ChatApp(App):  # this is the main KV app
                 'isfile': False
             }
             self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
-            print(f" <- {dumps(packet).encode()}")
+            # print(f" <- {dumps(packet).encode()}")
             popup.dismiss()
 
         container = BackgroundContainer(orientation='vertical', padding=10, spacing=10)
@@ -354,7 +379,7 @@ class ChatApp(App):  # this is the main KV app
         del self.sidebar_refs[friend]
         self.set_sidebar_to_friend_list()
         self.factory.client.transport.write((dumps(packet) + '\r\n').encode())  # send the acknowledgement
-        print(f" <- {dumps(packet).encode()}")
+        # print(f" <- {dumps(packet).encode()}")
 
     def accept_request_reply(self, packet):  # called when the peer has accepted the chat request
         private = DiffieHellman()
@@ -431,24 +456,31 @@ class ChatApp(App):  # this is the main KV app
             self.add_bubble_to_conversation(i, partner)
 
     def ingest_file(self, buffer):
+
+        cipher = AES.new(get_common_key(self.username, self.incoming['sender']), AES.MODE_SIV)
+        encrypted_filename = p_loads(b64decode(self.incoming['filename']))
+
         self.incoming['isfile'] = True
-        self.incoming['sender'] = self.incoming['sender']
+        self.incoming['sender'] = self.incoming['sender']  # TODO: ?
         self.incoming['content'] = buffer.strip(b'\r\n')
         self.incoming['timestamp'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        save_message(self.incoming, self.username)
+        filename = cipher.decrypt_and_verify(encrypted_filename[0], encrypted_filename[1]).decode()
+
+        save_message(self.incoming, self.username, filename)
         f = FauxMessage()
         f.isfile = self.incoming['isfile']
         f.message_data = self.incoming['content']
         f.sender = self.incoming['sender']
+        f.destination = self.username
+        f.timestamp = self.incoming['timestamp']
+
         application.add_bubble_to_conversation(f, self.incoming['sender'])
-        print("ingest complete")
+        # print("ingest complete")
 
     def add_bubble_to_conversation(self, message, partner):
         cipher = AES.new(get_common_key(partner, self.username), AES.MODE_SIV)
-        encrypted = p_loads(b64decode(message.message_data))
-        file_data = None
-        e = None
         if not message.isfile:
+            encrypted = p_loads(b64decode(message.message_data))
             try:
                 message.message_data = cipher.decrypt_and_verify(encrypted[0], encrypted[1]).decode()
             except ValueError:
@@ -460,16 +492,20 @@ class ChatApp(App):  # this is the main KV app
                 else:
                     e = ConversationElement(side='l', isfile=False, text=message.message_data)
         else:
-            try:
-                file_data = p_loads(cipher.decrypt_and_verify(encrypted[0], encrypted[1]))
-            except ValueError:
-                Logger.error(f"Application: MAC error on message id {message.id}")
-                file_data['filename'] = "[Message decryption failed. Most likely the key has changed]"
-            finally:
-                if message.sender == self.username:
-                    e = ConversationElement(side='r', isfile=True, filedata=file_data)
-                else:
-                    e = ConversationElement(side='l', isfile=True, filedata=file_data)
+            filename = get_filename(message.sender,
+                                    message.destination,
+                                    message.timestamp
+                                    )
+            truncated = {
+                'sender': message.sender,
+                'destination': message.destination,
+                'timestamp': message.timestamp
+            }
+            if message.sender == self.username:
+                e = ConversationElement(side='r', isfile=True, filename=filename, truncated=truncated)
+            else:
+                e = ConversationElement(side='l', isfile=True, filename=filename, truncated=truncated)
+
         self.root.ids.conversation.rows += 1
         self.root.ids.conversation.add_widget(e.line)
         self.conversation_refs.append(e)
@@ -567,7 +603,7 @@ class Client(Protocol):  # defines the communications protocol
 
     def dataReceived(self, data):  # called when a packet is received.
         if not self.receiving_file:
-            print(f" -> {data}")
+            # print(f" -> {data}")
             data = data.decode().split('}')
             for packet in data:
                 if packet:
@@ -597,28 +633,33 @@ class Client(Protocol):  # defines the communications protocol
                         f.sender = command['sender']
                         application.add_bubble_to_conversation(f, command['sender'])
                     elif command['command'] == 'ready_for_file':
-                        application.send_file()
+                        application.send_file(
+                            command['original_sender'],
+                            command['original_destination'],
+                            command['timestamp']
+                        )
                     elif command['command'] == 'prepare_for_file':
                         application.incoming = command
                         application.incoming['sender'] = command['original_sender']
+                        application.incoming['filename'] = command['filename']
                         self.receiving_file = True
-                        print("In file transfer mode")
+                        # print("In file transfer mode")
                         packet = {
                             'sender': command['destination'],
                             'destination': command['sender'],
                             'command': 'ready_for_file'
                         }
                         application.factory.client.transport.write(dumps(packet).encode())
-                        print(f" <- {dumps(packet).encode()}")
+                        # print(f" <- {dumps(packet).encode()}")
         else:
-            print(f" -> [ FILE BLOB DATA ]")
+            # print(f" -> [ FILE BLOB DATA ]")
             self.buffer += data
             if self.buffer[-2:] == '\r\n'.encode():
-                print("File transfer complete")
+                #   print("File transfer complete")
                 application.ingest_file(self.buffer)
                 self.receiving_file = False
                 self.buffer = b""
-                print("Successfully ingested. All done.")
+            #   print("Successfully ingested. All done.")
 
     def connectionLost(self, reason=connectionDone):  # called when the connection dies. RIP.
         Logger.info(reason.value)

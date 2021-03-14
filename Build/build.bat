@@ -1,4 +1,4 @@
-set version=1.3
+set version=2.0b
 
 set x86=x86
 set x64=x86_64
