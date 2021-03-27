@@ -1,9 +1,11 @@
+import time
 from io import BytesIO
 from os.path import basename
 from tkinter import filedialog, Tk
 from os import environ
 
 from appdirs import user_data_dir
+from twisted.logger import globalLogPublisher, LogLevel
 
 path = user_data_dir("PenguChat")
 environ['KIVY_NO_ENV_CONFIG'] = '1'
@@ -36,13 +38,17 @@ from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, connectionDone
 from twisted.internet.protocol import ClientFactory as Factory
 from twisted.protocols.basic import FileSender
-# from twisted.python.log import startLogging
-# from sys import stdout
+#from twisted.python.log import startLogging
+from twisted.internet.defer import Deferred
+#from sys import stdout
 
-# startLogging(stdout)
+#startLogging(stdout)
 
 from UIElements import *
 
+def analyze(event):
+    if event.get("log_level") == LogLevel.critical:
+        print ("Stopping for: ", event)
 
 class FauxMessage:
     def __init__(self):
@@ -143,12 +149,21 @@ class ChatApp(App):  # this is the main KV app
         self.root.current = 'loading_screen'
         self.init_chat_room()  # called to clear the chat room, in anticipation of a new one being loaded
 
+    @staticmethod
+    def get_network_speed(*args, **kwargs):
+        size = kwargs['size'] * (10 ** -6)
+        delta = time.time() - kwargs['start']
+        print(f"Transfer speed is {int(size / delta * 100)/100 } MBps")
+        # print(size)
+
     def send_file(self, sender, destination, timestamp):
         blob = get_file_for_message(sender, destination, timestamp)
         blob = BytesIO(blob)
         sender = FileSender()
-        sender.CHUNK_SIZE = 2 ** 16
-        sender.beginFileTransfer(blob, self.factory.client.transport)
+        sender.CHUNK_SIZE = 2 ** 32
+        start_time = time.time()
+        d = sender.beginFileTransfer(blob, self.factory.client.transport)
+        #d.addCallback(self.get_network_speed, start=start_time, size=blob.getbuffer().nbytes)
 
     def send_text(self):
         message_text = self.root.ids.message_content.text
@@ -176,6 +191,8 @@ class ChatApp(App):  # this is the main KV app
 
     def attach_file(self):  # function for attaching and then sending file
         file = filedialog.askopenfile(mode="rb")
+        tkWindow.update()
+        self.hide_tk()
         if file:
             file_data = p_dumps({'filename': basename(file.name), 'file_blob': file.read()})
             cipher = AES.new(get_common_key(self.destination, self.username), AES.MODE_SIV)  # encryption part
@@ -206,6 +223,10 @@ class ChatApp(App):  # this is the main KV app
             f.destination = packet['destination'],
             f.timestamp = datetime.strptime(packet['timestamp'], "%m/%d/%Y, %H:%M:%S")
             self.add_bubble_to_conversation(f, self.destination)
+            self.conversation_refs[-1].switch_mode()
+            self.root.ids['send_button'].disabled = True
+            application.root.ids['attach_button'].disabled = True
+            self.root.ids['message_content'].disabled = True
             self.factory.client.transport.write((dumps(packet) + '\r\n').encode())
             # print(f" <- {dumps(packet).encode()}")
 
@@ -503,6 +524,7 @@ class ChatApp(App):  # this is the main KV app
             }
             if message.sender == self.username:
                 e = ConversationElement(side='r', isfile=True, filename=filename, truncated=truncated)
+
             else:
                 e = ConversationElement(side='l', isfile=True, filename=filename, truncated=truncated)
 
@@ -603,7 +625,7 @@ class Client(Protocol):  # defines the communications protocol
 
     def dataReceived(self, data):  # called when a packet is received.
         if not self.receiving_file:
-            # print(f" -> {data}")
+            #print(f" -> {data}")
             data = data.decode().split('}')
             for packet in data:
                 if packet:
@@ -651,6 +673,11 @@ class Client(Protocol):  # defines the communications protocol
                         }
                         application.factory.client.transport.write(dumps(packet).encode())
                         # print(f" <- {dumps(packet).encode()}")
+                    elif command['command'] == 'file_received':
+                        application.conversation_refs[-1].switch_mode()
+                        application.root.ids['send_button'].disabled = False
+                        application.root.ids['attach_button'].disabled = False
+                        application.root.ids['message_content'].disabled = False
         else:
             # print(f" -> [ FILE BLOB DATA ]")
             self.buffer += data
@@ -671,7 +698,6 @@ class ClientFactory(Factory):  # handles connections and communications
 
     def buildProtocol(self, addr):
         c = Client()
-        self.sender = FileSender()
         self.client = c
         return c
 
@@ -691,7 +717,6 @@ class ClientFactory(Factory):  # handles connections and communications
 application = ChatApp()
 
 if __name__ == '__main__':
-    ExceptionManager.add_handler(ExceptionWatchdog())
 
     """
     USED FOR BUILDING OF STANDALONE WINDOWS APP
@@ -701,5 +726,6 @@ if __name__ == '__main__':
     
     if hasattr(sys, '_MEIPASS'):
         resource_add_path(os.path.join(sys._MEIPASS))"""
-
+    globalLogPublisher.addObserver(analyze)
     application.run()
+    ExceptionManager.add_handler(ExceptionWatchdog())

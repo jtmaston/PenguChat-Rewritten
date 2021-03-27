@@ -1,12 +1,12 @@
 from os import environ
 
 from appdirs import user_data_dir
+from kivy.uix.image import Image
 
 path = user_data_dir("PenguChat")
 environ['KIVY_NO_ENV_CONFIG'] = '1'
 environ["KCFG_KIVY_LOG_LEVEL"] = "error"
 environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
-
 
 from base64 import b64decode
 from tkinter.filedialog import SaveAs, asksaveasfile
@@ -100,15 +100,22 @@ class FileBubble(Button):
     def __init__(self, side, text, truncated, **kwargs):
         super(FileBubble, self).__init__(**kwargs)
         self.background_color = (0, 0, 0, 0)
+        if len(text) > 10:
+            text = text[0:3] + "..." + text[text.rfind("."):]
         with self.canvas.before:
             self.bc = Color()
             self.bc.rgb = colors['incoming_message'] if side == 'l' else colors['outgoing_message']
             self.rect = RoundedRectangle(pos=self.pos, size=(150, 150))
             self.rect.radius = [(15, 15), (15, 15), (15, 15), (15, 15)]
             self.side = side
+
+
             self.text = f'\n\n\n{text}'
             self.truncated = truncated
+        with self.canvas.after:
+            self.im = Image(source="Assets/file.png")
 
+        self.im.anim_delay = 0.01
         self.bind(pos=self.update_rect)
         self.bind(on_press=self.callback)
 
@@ -118,6 +125,12 @@ class FileBubble(Button):
             else self.pos
         self.font_size = 0.15 * self.width
         self.rect.size = self.size
+
+        self.im.pos = (self.parent.width - self.width, self.pos[1] + 15) \
+            if self.side == 'r' \
+            else (self.pos[0], self.pos[1] + 15)
+        self.im.size = self.size
+
         self.parent.height = self.height
 
     def callback(self, *args, **kwargs):
@@ -165,6 +178,20 @@ class ExceptionWatchdog(ExceptionHandler):
 
 
 class ConversationElement:
+    def switch_mode(self):
+        load = "Assets/processing.gif"
+        static = "Assets/file.png"
+        if not self.loading:
+            if self.side == 'l':
+                self.left.im.source = load
+            else:
+                self.right.im.source = load
+        else:
+            if self.side == 'r':
+                self.right.im.source = static
+            else:
+                self.left.im.source = static
+        self.loading = not self.loading
 
     def __init__(self, text=None, side=None, isfile=False, filename=None, truncated=None):
         self.line = BoxLayout(orientation='horizontal')
@@ -172,6 +199,8 @@ class ConversationElement:
         self.right = None
         self.line.size_hint_y = None
         self.reload = None
+        self.loading = False
+        self.side = side
 
         if side == 'l':
             self.left = MessageBubble(text=text, side=side) if not isfile \

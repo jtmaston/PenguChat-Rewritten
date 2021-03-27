@@ -192,6 +192,11 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
             if self.buffer[-2:] == '\r\n'.encode():
                 Logger.info(f"{self.endpoint_username} finished upload. {getsizeof(self.buffer)} bytes received.")
                 self.receiving_file = False
+                reply = {
+                    'command': 'file_received',
+                    'sender': 'SERVER'
+                }
+                self.transport.write(get_transportable_data(reply))
                 try:
                     t = self.factory.connections[self.outgoing['destination']]
                     self.check_if_ready(self.outgoing['sender'], self.outgoing['destination'],

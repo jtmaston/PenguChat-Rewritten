@@ -15,10 +15,10 @@
     size_hint: None, None
 	size: 120, 120
 
-	Image:
-	    source: 'Assets/file.png'
-	    size: self.parent.size
-        pos: self.parent.pos[0], self.parent.pos[1] + 10
+#	Image:
+#	    source: 'Assets/file.png'
+#	    size: self.parent.size
+ #       pos: self.parent.pos[0], self.parent.pos[1] + 10
 
 <RightButton>
 	size_hint_y: None
@@ -302,6 +302,7 @@ ScreenManager:
                             id: message_content
                             on_text_validate: app.send_text()
                         MenuButton:
+                            id: send_button
                             on_press: app.send_text()
                             size_hint: (0.15, 1)
                             Image:
@@ -309,6 +310,7 @@ ScreenManager:
                                 size: self.parent.size
                                 pos: self.parent.pos
                         MenuButton:
+                            id: attach_button
                             on_press: app.attach_file()
                             size_hint: (0.15, 1)
                             Image:
