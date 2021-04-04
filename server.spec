@@ -31,4 +31,4 @@ exe = EXE(pyz,Tree('C:\\Users\\aanas\\PycharmProjects\\PenguChat-redesigned\\Ser
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=True )
+          console=True, icon='Client\\Assets\\server.png')

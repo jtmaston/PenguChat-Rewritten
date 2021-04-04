@@ -57,11 +57,11 @@ class FauxMessage:
         self.sender = None
 
 
-class ChatApp(App):  # this is the main KV app
+class PenguChatApp(App):  # this is the main KV app
     _popup: Popup
 
     def __init__(self):  # set the window params, as well as init some parameters
-        super(ChatApp, self).__init__()
+        super(PenguChatApp, self).__init__()
         Config.set('graphics', 'width', '500')
         Config.set('graphics', 'height', '700')
         self.username = None
@@ -82,11 +82,12 @@ class ChatApp(App):  # this is the main KV app
         tkWindow.withdraw()
 
     def build(self):
-        super(ChatApp, self).build()
+        super(PenguChatApp, self).build()
         self.root.current = 'loading_screen'  # move to the loading screen
         self.factory = ClientFactory()
         self.root.ids.conversation.bind(minimum_height=self.root.ids.conversation.setter('height'))
         self.root.ids.request_button.tab = 'F'
+        self.icon = 'Assets/circle-cropped.png'
         reactor.connectTCP("localhost", 8123, self.factory)  # connect to the server
 
     """Server handshake, establish E2E tunnel for password exchange"""
@@ -714,15 +715,15 @@ class ClientFactory(Factory):  # handles connections and communications
         connector.connect()
 
 
-application = ChatApp()
+application = PenguChatApp()
 
 if __name__ == '__main__':
 
-    """import os
+    import os
     from kivy.resources import resource_add_path
-    
+
     if hasattr(sys, '_MEIPASS'):
-        resource_add_path(os.path.join(sys._MEIPASS))"""
+        resource_add_path(os.path.join(sys._MEIPASS))
     globalLogPublisher.addObserver(analyze)
     application.run()
     ExceptionManager.add_handler(ExceptionWatchdog())
