@@ -184,6 +184,7 @@ class Server(Protocol):  # describes the protocol. compared to the client, the s
     def dataReceived(self, data):
         if not self.receiving_file:
             data = data.split('\r\n'.encode())
+            Logger.info(data)
             for message in data:
                 if message:
                     self.decode_command(message)

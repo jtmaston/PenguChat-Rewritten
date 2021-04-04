@@ -626,7 +626,7 @@ class Client(Protocol):  # defines the communications protocol
 
     def dataReceived(self, data):  # called when a packet is received.
         if not self.receiving_file:
-            #print(f" -> {data}")
+            #print(f" -> {data}")       # uncomment this line to get the raw packet data
             data = data.decode().split('}')
             for packet in data:
                 if packet:
@@ -718,12 +718,15 @@ class ClientFactory(Factory):  # handles connections and communications
 application = PenguChatApp()
 
 if __name__ == '__main__':
-
+    """ 
+    THIS IS NECESSARY FOR PYINSTALLER BUILD ON WINDOWS. DO NOT UNCOMMENT UNLESS BUILDING.
     import os
     from kivy.resources import resource_add_path
 
-    if hasattr(sys, '_MEIPASS'):
+     if hasattr(sys, '_MEIPASS'):
         resource_add_path(os.path.join(sys._MEIPASS))
+     """
+
     globalLogPublisher.addObserver(analyze)
     application.run()
     ExceptionManager.add_handler(ExceptionWatchdog())
