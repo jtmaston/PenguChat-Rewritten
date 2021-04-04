@@ -14,7 +14,7 @@ from tkinter.filedialog import SaveAs, asksaveasfile
 from Crypto.Cipher import AES
 from kivy import Logger, LOG_LEVELS
 
-from Client.DBHandler import get_common_key, get_file_for_message
+from DBHandler import get_common_key, get_file_for_message
 
 Logger.setLevel(LOG_LEVELS["error"])
 from kivy.base import ExceptionHandler, ExceptionManager

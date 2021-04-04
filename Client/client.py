@@ -160,7 +160,7 @@ class ChatApp(App):  # this is the main KV app
         blob = get_file_for_message(sender, destination, timestamp)
         blob = BytesIO(blob)
         sender = FileSender()
-        sender.CHUNK_SIZE = 2 ** 32
+        sender.CHUNK_SIZE = 2 ** 16
         start_time = time.time()
         d = sender.beginFileTransfer(blob, self.factory.client.transport)
         #d.addCallback(self.get_network_speed, start=start_time, size=blob.getbuffer().nbytes)
@@ -718,10 +718,7 @@ application = ChatApp()
 
 if __name__ == '__main__':
 
-    """
-    USED FOR BUILDING OF STANDALONE WINDOWS APP
-    
-    import os
+    """import os
     from kivy.resources import resource_add_path
     
     if hasattr(sys, '_MEIPASS'):
