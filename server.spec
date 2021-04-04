@@ -8,7 +8,7 @@ a = Analysis(['Server\\server.py'],
              pathex=['C:\\Users\\aanas\\PycharmProjects\\PenguChat-redesigned'],
              binaries=[],
              datas=[],
-             hiddenimports=[],
+             hiddenimports=['twisted'],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
@@ -31,4 +31,4 @@ exe = EXE(pyz,Tree('C:\\Users\\aanas\\PycharmProjects\\PenguChat-redesigned\\Ser
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=True )
+          console=True , icon='Client\\Assets\\server.ico')

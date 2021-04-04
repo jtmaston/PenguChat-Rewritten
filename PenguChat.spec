@@ -32,4 +32,4 @@ exe = EXE(pyz,Tree('C:\\Users\\aanas\\PycharmProjects\\PenguChat-redesigned\\Cli
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=True )
+          console=False , icon='Client\\Assets\\icon.ico')
