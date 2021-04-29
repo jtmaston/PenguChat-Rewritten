@@ -1,4 +1,3 @@
-# TODO: The database handler needs a redesign
 from datetime import datetime
 from os import makedirs, environ
 
@@ -7,14 +6,17 @@ from peewee import *
 
 path = user_data_dir("PenguChat")
 environ['KIVY_NO_ENV_CONFIG'] = '1'
-environ["KCFG_KIVY_LOG_LEVEL"] = "warning"
+environ["KCFG_KIVY_LOG_LEVEL"] = "error"
 environ["KCFG_KIVY_LOG_DIR"] = path + '/PenguChat/Logs'
 from kivy import Logger
+
 db = SqliteDatabase(path + '/messages.db')
 
 
+# the peewee framework was used to streamline database ops.
+
 class CommonKeys(Model):
-    added_by = CharField(100)  # identifies who added the message to the DB
+    added_by = CharField(100)
     partner_name = CharField(100)
     common_key = BlobField(null=True)
     key_updated = DateTimeField(null=True)
@@ -24,7 +26,7 @@ class CommonKeys(Model):
 
 
 class PrivateKeys(Model):
-    added_by = CharField(100)  # identifies who added the message to the DB
+    added_by = CharField(100)
     partner_name = CharField(100)
     self_private_key = BlobField(null=True)
 
@@ -33,12 +35,13 @@ class PrivateKeys(Model):
 
 
 class Messages(Model):
-    added_by = CharField(100)  # identifies who added the message to the DB
+    added_by = CharField(100)
     sender = CharField(100)
     destination = CharField(100)
     message_data = BlobField()
     timestamp = DateTimeField()
     isfile = BooleanField()
+    filename = TextField(default=None)
 
     class Meta:
         database = db
@@ -53,7 +56,32 @@ class Requests(Model):
         database = db
 
 
-def add_common_key(partner_name, common_key, added_by):
+def get_file_for_message(sender, destination, timestamp):
+    try:
+        timestamp = datetime.strptime(timestamp, "%m/%d/%Y, %H:%M:%S")
+    except TypeError:
+        pass
+
+    return Messages.get(
+        Messages.sender == sender,
+        Messages.destination == destination,
+        Messages.timestamp == timestamp
+    ).message_data
+
+
+def get_filename(sender, destination, timestamp):
+    try:
+        timestamp = datetime.strptime(timestamp, "%m/%d/%Y, %H:%M:%S")
+    except TypeError:
+        pass
+    return Messages.get(
+        Messages.sender == sender,
+        Messages.destination == destination,
+        Messages.timestamp == timestamp
+    ).filename
+
+
+def add_common_key(partner_name, common_key, added_by):  # add a common key to the database
     try:
         query = CommonKeys.get(CommonKeys.partner_name == partner_name)
     except CommonKeys.DoesNotExist:
@@ -72,7 +100,7 @@ def add_common_key(partner_name, common_key, added_by):
         query.save()
 
 
-def get_common_key(partner_name, username):
+def get_common_key(partner_name, username):  # retrieve said common key
     try:
         query = CommonKeys.get(
             (CommonKeys.partner_name == partner_name) &
@@ -84,7 +112,7 @@ def get_common_key(partner_name, username):
         return query.common_key
 
 
-def add_private_key(partner_name, private_key, username):
+def add_private_key(partner_name, private_key, username):  # ditto above idk
     private_key = str(private_key).encode()
     try:
         key = PrivateKeys.get(PrivateKeys.partner_name == partner_name)
@@ -137,10 +165,10 @@ def get_messages(partner, username):
         ((Messages.destination == partner) & (Messages.sender == username)) |
         ((Messages.sender == partner) & (Messages.destination == username))
     ).order_by(Messages.timestamp)
-    return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username and i.isfile == False]
+    return [i for i in query if i.message_data.decode() != chr(224) and i.added_by == username]
 
 
-def save_message(packet, username):
+def save_message(packet, username, filename=None):
     try:
         message = packet['content'].encode()
     except AttributeError:
@@ -152,7 +180,8 @@ def save_message(packet, username):
         message_data=message,
         timestamp=datetime.strptime(packet['timestamp'], "%m/%d/%Y, %H:%M:%S"),
         added_by=username,
-        isfile=packet['isfile']
+        isfile=packet['isfile'],
+        filename=filename if filename is not None else ""
     ).save()
 
 
@@ -192,7 +221,8 @@ except OperationalError as t:
     except FileExistsError:
         pass
     try:
-        open(path)
+        open(path + '/messages.db', 'r')
     except FileNotFoundError:
-        with open(path):
+        with open(path + '/messages.db', 'w+'):
             pass
+    db.create_tables([CommonKeys, Messages, PrivateKeys, Requests])

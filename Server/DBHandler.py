@@ -1,5 +1,3 @@
-# TODO: The database handler needs a redesign
-
 from datetime import datetime
 from os import makedirs, environ
 
@@ -31,23 +29,40 @@ class MessageCache(Model):
     sender = CharField(100)
     destination = CharField(100)
     command = CharField(100)
-    content = TextField()
+    content = BlobField(null=True)
     timestamp = DateTimeField()
     is_key = BooleanField(default=False)
     isfile = BooleanField()
+    filename = TextField()
 
     class Meta:
         database = db
 
 
+def append_file_to_cache(packet, blob):
+    query = MessageCache.update({MessageCache.content: blob}).where(MessageCache.timestamp == packet['timestamp'])
+    query.execute()
+
+
 def add_message_to_cache(packet):
+    try:
+        content = packet['content']
+    except KeyError:
+        content = ""
+
+    try:
+        filename = packet['filename']
+    except KeyError:
+        filename = ""
+
     MessageCache(
         sender=packet['sender'],
         destination=packet['destination'],
-        content=packet['content'],
+        content=content,
         timestamp=packet['timestamp'],
         command=packet['command'],
-        isfile=packet['isfile']
+        isfile=packet['isfile'],
+        filename=filename
     ).save()
 
 
@@ -114,7 +129,9 @@ except OperationalError as t:
     except FileExistsError:
         pass
     try:
-        open(path + '/Users.db')
+        open(path + '/Users.db', 'r')
     except FileNotFoundError:
-        with open(path + '/Users.db'):
+        Logger.warning("Database file missing, re-creating. ")
+        with open(path + '/Users.db', "w+"):
             pass
+    db.create_tables([User, MessageCache])
