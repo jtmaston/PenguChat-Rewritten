@@ -6,3 +6,4 @@
   royalty-free, IcoMoon Free. Gif-urile sunt animate de mine, din imagini statice.
 * În Client/client.py există o referință la MeiPass, acel fix este folosit pentru compilarea cu pyinstaller, provine
   de pe stack overflow.
+* Pinguinul din fereastra de login este construit după un tutorial ( https://www.youtube.com/watch?v=37OHviAtxDs )

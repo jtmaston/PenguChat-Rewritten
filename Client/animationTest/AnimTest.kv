@@ -1,0 +1,195 @@
+#:import C kivy.utils.get_color_from_hex
+#:import RiseInTransition kivy.uix.screenmanager.RiseInTransition
+#:import Window kivy.core.window.Window
+#:import Factory kivy.factory.Factory
+#:import utils kivy.utils
+#:import math math
+
+<MessageBubble>
+	size_hint: None, None
+	padding: 10, 5
+	spacing: 0, 0
+    size: self.texture_size
+
+<FileBubble>
+    size_hint: None, None
+	size: 120, 120
+
+#	Image:
+#	    source: 'Assets/file.png'
+#	    size: self.parent.size
+ #       pos: self.parent.pos[0], self.parent.pos[1] + 10
+
+<RightButton>
+	size_hint_y: None
+	size_hint_x: None
+	padding: (20, 5)
+    height: 40
+    width: 40
+    text_size: self.width, None
+
+    canvas.before:
+        Color:
+            rgb: 0.096, 0.535, 0.656
+        RoundedRectangle:
+            radius: [(15, 15), (15, 15), (15, 15), (15, 15)]
+            size: self.texture_size
+            pos: self.pos
+
+<Label>:
+	font_size: 25
+
+# despacito idk
+
+<BlueButton@Button>:
+	font_size: 30
+	height: 90
+	size_hint: (1, None)
+	background_normal: 'assets/fallback.png'
+	background_color: 0.181, 0.566, 0.755
+
+<MenuButton>:
+    background_normal: 'assets/fallback.png'
+	background_color: 0, 0.413, 0.586
+	canvas.before:
+        Color:
+            rgb: 0, 0.213, 0.286
+        Line:
+            width: 2
+            rectangle: self.x, self.y, self.width, self.height
+
+<TextInput>:
+	font_size: 30
+	multiline: False
+	padding: [10, 0.5 * (self.height - self.line_height)]
+
+<LoginLabel@Label>:
+	color: 0, 0, 0, 1
+	font_size: 25
+	text_size: self.size
+	halign: 'left'
+	valign: 'middle'
+	size_hint: (0.4, 1)
+
+<LoginScreen@Screen>:
+    on_pre_enter:
+        Window.size = (500, 700)
+	canvas:
+		Rectangle:
+			source:"assets/wallpaper.png"
+			pos: self.pos
+			size: self.size
+
+<BackgroundContainer>
+	canvas.before:
+	    Color:
+	        rgb: 0, 0.213, 0.286
+	    Rectangle:
+	        pos: self.pos
+	        size: self.size
+
+<RoundedTextInput@TextInput>:
+    font_size: '14dp'
+    background_color: 0,0,0,0
+    cursor_color: C('#ffffff')
+    canvas.before:
+        Color:
+            rgba: C('#ffffff')
+    canvas.after:
+        Color:
+            rgb: C('#0f192e')
+        Ellipse:
+            angle_start:180
+            angle_end:360
+            pos:(self.pos[0] - self.size[1]/2.0, self.pos[1])
+            size: (self.size[1], self.size[1])
+        Ellipse:
+            angle_start:360
+            angle_end:540
+            pos: (self.size[0] + self.pos[0] - self.size[1]/2.0, self.pos[1])
+            size: (self.size[1], self.size[1])
+        Color:
+            rgba: C('#3f92db')
+        Line:
+            points: self.pos[0] , self.pos[1], self.pos[0] + self.size[0], self.pos[1]
+        Line:
+            points: self.pos[0], self.pos[1] + self.size[1], self.pos[0] + self.size[0], self.pos[1] + self.size[1]
+        Line:
+            ellipse: self.pos[0] - self.size[1]/2.0, self.pos[1], self.size[1], self.size[1], 180, 360
+        Line:
+            ellipse: self.size[0] + self.pos[0] - self.size[1]/2.0, self.pos[1], self.size[1], self.size[1], 360, 540
+
+# <=========================>
+
+ScreenManager:
+	transition: RiseInTransition()
+	LoginScreen:
+		name: 'login'
+		on_leave:
+            app.root.ids.loginUsr.text = ""
+            app.root.ids.loginPass.text = ""
+		BoxLayout:
+            orientation:'vertical'
+        #    BoxLayout:TOP BIT
+        #        size_hint_y: 20
+        #        canvas.before:
+        #            Color:
+        #                rgba: 1, 1, 1, 1
+        #            Rectangle:
+        #                pos:self.pos
+        #                size:self.size
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: 80
+                canvas:
+                    Color:
+                        rgba: C('#18294a')
+                    Rectangle:
+                        pos:self.pos
+                        size:self.size
+                BoxLayout:
+                    size_hint_y: 10
+                BoxLayout:
+                    size_hint_y: 20
+                    orientation:'vertical'
+                    Widget:
+                        size_hint_y: 8
+                    BoxLayout:
+                        size_hint_y: 8
+                        BoxLayout:
+                            size_hint_x: 25
+                        BoxLayout:
+                            size_hint_x: 50
+                            canvas.before:
+                                Color:
+                                    rgba: C('#0f192e')
+                                Rectangle:
+                                    pos: self.pos
+                                    size: self.size
+                            RoundedTextInput:
+                        BoxLayout:
+                            size_hint_x: 25
+                Widget:
+                    size_hint_y: 10
+                BoxLayout:
+                    size_hint_y: 20
+                    orientation:'vertical'
+                    BoxLayout:
+                        size_hint_y: 8
+                    BoxLayout:
+                        size_hint_y: 8
+                        BoxLayout:
+                            size_hint_x: 25
+                        BoxLayout:
+                            size_hint_x: 50
+                            canvas.before:
+                                Color:
+                                    rgba: C('#0f192e')
+                                Rectangle:
+                                    pos: self.pos
+                                    size: self.size
+                            RoundedTextInput:
+                        BoxLayout:
+                            size_hint_x: 25
+                BoxLayout:
+                    size_hint_y: 40
