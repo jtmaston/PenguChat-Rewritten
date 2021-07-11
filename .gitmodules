@@ -1,6 +1,6 @@
 [submodule "PenguChat-Server"]
-	path = Server
+	path = PenguChat-Server
 	url = https://github.com/jtmaston/PenguChat-Server.git
 [submodule "PenguChat-Client"]
-	path = Client
+	path = PenguChat-Client
 	url = https://github.com/jtmaston/PenguChat-Client.git
