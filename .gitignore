@@ -5,3 +5,4 @@ Build
 Archive
 dist
 ._.DS_Store
+venv/
