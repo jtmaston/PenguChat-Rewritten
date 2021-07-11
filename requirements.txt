@@ -1,0 +1,7 @@
+pyDH
+Twisted
+peewee
+bcrypt
+kivy[base]
+pycryptodome
+appdirs
