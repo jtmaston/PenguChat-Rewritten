@@ -5,6 +5,7 @@ from tkinter import filedialog, Tk
 from os import environ
 
 from appdirs import user_data_dir
+from kivymd.app import MDApp
 from twisted.logger import globalLogPublisher, LogLevel
 
 path = user_data_dir("PenguChat")
@@ -57,7 +58,7 @@ class FauxMessage:
         self.sender = None
 
 
-class PenguChatApp(App):  # this is the main KV app
+class PenguChatApp(MDApp):  # this is the main KV app
     _popup: Popup
 
     def __init__(self):  # set the window params, as well as init some parameters
