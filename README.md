@@ -6,6 +6,9 @@
   royalty-free, IcoMoon Free. Gif-urile sunt animate de mine, din imagini statice.
 * În Client/client.py există o referință la MeiPass, acel fix este folosit pentru compilarea cu pyinstaller, provine
   de pe stack overflow.
+
+Logo design:
+* Logo-ul e facut de mine, in gimp, urmand tutorialul disponibil la https://www.youtube.com/watch?v=37OHviAtxDs
   
 Sound credits:
 * https://www.storyblocks.com/audio/stock/telephone-busy-signal-speakerphone-bl9xskpnipsk0wxvpv2.html
